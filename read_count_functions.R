@@ -29,7 +29,7 @@ getCDS5start <- function(name, gffdf, ftype="CDS", fstrand="+") {
     min 
 }
 
-getCDS3end <- function(name, gffdf, ftype="CDS", fstrand="+") {
+GetCDS3end <- function(name, gffdf, ftype="CDS", fstrand="+") {
   gffdf %>% 
     filter(type==ftype, Name == name, strand == fstrand) %>% 
     pull(end) %>% 
