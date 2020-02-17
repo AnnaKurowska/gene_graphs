@@ -31,7 +31,8 @@ suppressMessages(library(purrr))
 ###script
 
 ##
-test_genes <- c("PGK1","GCN4","CPA1","ALR1","VAS1") 
+test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
+#test_genes <- c("PGK1","GCN4","CPA1","ALR1","VAS1") 
 min_read_length <- 10
 max_read_length <- 50
 orf_gff_file <- "Input/yeast_CDS_w_250utrs.gff3"
@@ -39,6 +40,16 @@ orf_fasta_file <- "Input/yeast_CDS_w_250utrs.fa"
 setwd("/Users/Ania/Desktop/Szkoła/4th\ year/Dissertation/gene_graphs/")  
 hd_file <- "Input/WTnone.h5"
 source("read_count_functions.R")
+asite_disp_length_file <-"Input/asite_disp_length_yeast_standard.txt"
+dataset <- "G-Sc_2014"
+
+## functions
+GetCDS5start <- function(name, gffdf, ftype="CDS", fstrand="+") {
+  gffdf %>% 
+    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+    dplyr::pull(start) %>%  # pull() pulls out single variable
+    min 
+}
 
 ##
 
@@ -52,3 +63,24 @@ read_range <- min_read_length:max_read_length
 
 gff_df <- readGFFAsDf(orf_gff_file)
 
+##
+asite_disp_length <- readr::read_tsv(asite_disp_length_file,
+                                     comment = "#"
+)
+
+
+reads_per_codon_etc <- tibble(gene=gene_names) %>%
+  filter( gene_names %in% test_orfs) %>%
+  mutate(CountPerCodon = map(gene, ~GetGeneCodonPosReads1dsnap(
+    .,
+    dataset,
+    hdf5file,
+    left = GetCDS5start(., gff_df),
+    right = GetCDS3end(., gff_df),
+    min_read_length = min_read_length,
+    asite_disp_length = asite_disp_length,
+  ) ),
+  NormCtperCodon = map(CountPerCodon, ~NormByMean(.) ),
+  SumAsiteCt = map(CountPerCodon,~sum(.)) %>% unlist,
+  LengthCodons = map(CountPerCodon,~length(.)) %>% unlist
+  )
