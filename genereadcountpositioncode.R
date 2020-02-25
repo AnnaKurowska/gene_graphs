@@ -116,6 +116,21 @@ gene_poslen_counts_5start_df <-
   Reduce("+", .) %>% # sums the list of data matrices
   TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
 
+#I've only chosen read lengths between 24 and 30 (y) and then i averaged the read count for each position (x)
+
+y<-gene_poslen_counts_5start_df %>%
+  filter(ReadLen >=24 & ReadLen <= 30)
+
+x<-y %>%
+  group_by(Pos) %>%
+  summarise(avg=mean(Counts))  %>%
+  as.data.frame %>%
+  arrange(x$Pos)
+
+view(x)
+class(x)
+
+
     # Runnning these next few lines seems to sum the counts from ALL genes, 
     # and squishes these down into all-gene totals, which isn't what we want.
     # %>%
