@@ -1,10 +1,10 @@
-setwd("~/RiboViz")
+setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
 
-suppressMessages(library(rhdf5))
-suppressMessages(library(tidyr))
-suppressMessages(library(dplyr))
-suppressMessages(library(magrittr))
-suppressMessages(library(purrr))
+library(rhdf5)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(purrr)
 
 dataset <- "G-Sc_2014"
 hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -15,7 +15,7 @@ hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
 # next step is to test with these 5 genes only instead of all genes
-# test_orfs<- c(“YCR012W”,“YEL009C”,“YOR303W”,“YOL130W”,“YGR094W”)
+test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
 
 # function to get data matrix of read counts for gene and dataset from hdf5file
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
@@ -26,11 +26,6 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     rhdf5::H5Dread() %>%
     return()
 }
-
-allGenesDataMatrix <- lapply(gene_names,
-       function(gene) 
-         GetGeneDatamatrix(gene, dataset, hdf5file)
-)
 
 # --- 
 
@@ -109,7 +104,7 @@ TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
 # get gene and position specific total counts for all read lengths
 
 gene_poslen_counts_5start_df <-
-    lapply(gene_names,
+    lapply(test_orfs[1],
            function(gene) 
              GetGeneDatamatrix5start(gene,
                                      dataset,
@@ -117,7 +112,10 @@ gene_poslen_counts_5start_df <-
                                      posn_5start = GetCDS5start(gene, gff_df),
                                      n_buffer = 25,
                                      nnt_gene = 50)
-    )
+    ) %>%
+  Reduce("+", .) %>% # sums the list of data matrices
+  TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
+
     # Runnning these next few lines seems to sum the counts from ALL genes, 
     # and squishes these down into all-gene totals, which isn't what we want.
     # %>%
