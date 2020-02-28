@@ -41,3 +41,6 @@ vignettes/*.pdf
 #ignore other files
 /input/*.*
 
+#ignore G-Sc_2014
+/G-Sc_2014/*.*
+
