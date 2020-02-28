@@ -5,13 +5,14 @@ library(tidyr)
 library(dplyr)
 library(magrittr)
 library(purrr)
+library(ggplot2)
+library(ggpubr)
 
 dataset <- "G-Sc_2014"
 hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
 
 # prepare files, opens hdf5 file connection
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-
 
 gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
 # next step is to test with these 5 genes only instead of all genes
@@ -59,7 +60,6 @@ GetCDS5start <- function(name, gffdf, ftype="CDS", fstrand="+") {
     min 
 }
 
-#posn_5start <- GetCDS5start(gene, gff_df)
 
 # function to get matrix of read counts between specific positions
 # (from n_buffer before start codon to nnt_gene after start codon)
@@ -110,29 +110,157 @@ gene_poslen_counts_5start_df <-
                                      dataset,
                                      hdf5file,
                                      posn_5start = GetCDS5start(gene, gff_df),
-                                     n_buffer = 25,
-                                     nnt_gene = 50)
+                                     n_buffer = 250,
+                                     nnt_gene = 50) #do we want a limit/whole thing?
+           
     ) %>%
   Reduce("+", .) %>% # sums the list of data matrices
-  TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
+  TidyDatamatrix(startpos = -50 + 1, startlen = 10)  #
+#if we remove the reduce function then it says that in startpos the argument =0 which must means there are no columns?
 
-#I've only chosen read lengths between 24 and 30 (y) and then i averaged the read count for each position (x)
-
-y<-gene_poslen_counts_5start_df %>%
-  filter(ReadLen >=24 & ReadLen <= 30)
-
-x<-y %>%
+x1<-gene_poslen_counts_5start_df %>%
   group_by(Pos) %>%
-  summarise(avg=mean(Counts))  %>%
-  as.data.frame %>%
-  arrange(x$Pos)
+  summarise(Counts=sum(Counts)
+)
 
-view(x)
-class(x)
+x1<- arrange(x,x$Pos)
 
+#Plotting 
 
-    # Runnning these next few lines seems to sum the counts from ALL genes, 
-    # and squishes these down into all-gene totals, which isn't what we want.
-    # %>%
-    # Reduce("+", .) %>% # sums the list of data matrices
-    # TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
+ x1_plot<-ggplot(
+  data=x1,) +
+  geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+   theme_light() +
+   labs(y= "Read count", x = "Position (mRNA)")
+   
+   
+##For other genes:
+
+ #2
+ 
+ gene_poslen2_counts_5start_df <-
+   lapply(test_orfs[2],
+          function(gene) 
+            GetGeneDatamatrix5start(gene,
+                                    dataset,
+                                    hdf5file,
+                                    posn_5start = GetCDS5start(gene, gff_df),
+                                    n_buffer = 25,
+                                    nnt_gene = 50)
+   ) %>%
+   Reduce("+", .) %>% # sums the list of data matrices
+   TidyDatamatrix(startpos = -50 + 1, startlen = 10)  
+ 
+ x2<-gene_poslen2_counts_5start_df %>%
+   group_by(Pos) %>%
+   summarise(Counts=sum(Counts)
+   )
+ 
+ x2<- arrange(x2,x$Pos)
+ 
+ x2_plot<-ggplot(
+   data=x2,) +
+   geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+   theme_light() +
+   labs(y= "Read count", x = "Position (mRNA)")
+ 
+#3 
+ 
+ gene_poslen3_counts_5start_df <-
+   lapply(test_orfs[3],
+          function(gene) 
+            GetGeneDatamatrix5start(gene,
+                                    dataset,
+                                    hdf5file,
+                                    posn_5start = GetCDS5start(gene, gff_df),
+                                    n_buffer = 25,
+                                    nnt_gene = 50)
+   ) %>%
+   Reduce("+", .) %>% # sums the list of data matrices
+   TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
+ 
+ 
+ x3<-gene_poslen_counts_5start_df %>%
+   group_by(Pos) %>%
+   summarise(Counts=sum(Counts)
+   )
+ 
+ x3<- arrange(x,x$Pos)
+ 
+ x3_plot<-ggplot(
+   data=x3,) +
+   geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+   theme_light() +
+   labs(y= "Read count", x = "Position (mRNA)")
+ 
+ 
+ #4
+ 
+ gene_poslen4_counts_5start_df <-
+   lapply(test_orfs[4],
+          function(gene) 
+            GetGeneDatamatrix5start(gene,
+                                    dataset,
+                                    hdf5file,
+                                    posn_5start = GetCDS5start(gene, gff_df),
+                                    n_buffer = 25,
+                                    nnt_gene = 50)
+   ) %>%
+   Reduce("+", .) %>% # sums the list of data matrices
+   TidyDatamatrix(startpos = -50 + 1, startlen = 10) 
+ 
+ x4<-gene_poslen4_counts_5start_df %>%
+   group_by(Pos) %>%
+   summarise(Counts=sum(Counts)
+   )
+ 
+ x4<- arrange(x,x$Pos)
+
+ x4_plot<- ggplot(
+   data=x4,) +
+   geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+   theme_light() +
+   labs(y= "Read count", x = "Position (mRNA)")
+ 
+ 
+ #5
+ 
+ gene_poslen5_counts_5start_df <-
+   lapply(test_orfs[5],
+          function(gene) 
+            GetGeneDatamatrix5start(gene,
+                                    dataset,
+                                    hdf5file,
+                                    posn_5start = GetCDS5start(gene, gff_df),
+                                    n_buffer = 25,
+                                    nnt_gene = 50)
+   ) %>%
+   Reduce("+", .) %>% # sums the list of data matrices
+   TidyDatamatrix(startpos = -50 + 1, startlen = 10)  
+
+ 
+ x5<-gene_poslen5_counts_5start_df %>%
+   group_by(Pos) %>%
+   summarise(Counts=sum(Counts)
+   )
+ 
+ x5<- arrange(x,x$Pos)
+ 
+ x5_plot<-ggplot(
+   data=x5,) +
+   geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+   theme_light() +
+   labs(y= "Read count", x = "Position (mRNA)")
+
+ #Combining graphs 
+ 
+ mplot<-ggarrange(x1_plot, x2_plot, x3_plot, x4_plot, x5_plot, 
+           labels = c("A", "B", "C", "D", "E"),
+           ncol = 2, nrow = 3)
+ 
+ggsave("filename = mplot_Ania.png")
+#this seems good, but yesterday we established that the actual GetGeneDMatrix5Start function may actually skew the data and we need to figure out what we actually need.
+ 
+ggsave(pos_sp_mrna_norm_coverage_plot, filename = file.path(output_dir, paste0(output_prefix, "pos_sp_mrna_norm_coverage.pdf")))
+ 
+ #strange it's not working now, it worked before 
