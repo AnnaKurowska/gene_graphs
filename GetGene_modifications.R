@@ -14,8 +14,6 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
 #but then we have to limit these to the ones we want
   #we want: 5'UTR and for the start the entirety of the CDS, it's just easier that way
 
-#but we either have to modify or completely get rid of the GetCDS5Start:
-
 # > gff_df
 # # A tibble: 17,436 x 10
 # seqnames  start   end width strand source      type  score phase Name     
@@ -43,7 +41,8 @@ UTR5_length_table <- function(gffdf) {
   mutate(UTR5L=gff_df$end-gff_df$start)
 }
 
-UTR5_length_table_output<-UTR5_length_table(gff_df)
+#instead of creating a new table, just reassign it as gff_df==that's gonna make it much simpler
+gff_df<-UTR5_length_table(gff_df)
 
 UTR5_length <- function(name, gffdf, ftype="UTR5", fstrand="+") {
   gffdf %>% 
@@ -80,8 +79,8 @@ interesting <-
            GetGeneDatamatrix5start(gene,
                                    dataset,
                                    hdf5file,
-                                   Get5UTRstart(gene, UTR5_length_table_output),
-                                   UTR5full = UTR5_length(gene, UTR5_length_table_output), 
+                                   Get5UTRstart(gene, gff_df),
+                                   UTR5full = UTR5_length(gene, gff_df), 
                                    nnt_gene = 50)
   ) %>%
   Reduce("+", .) %>% # sums the list of data matrices
@@ -151,3 +150,40 @@ integrate() #finds the area under the curve defined by f()
 uniroot() #finds where f() hits zero
 optimise() #finds the location of lowest (or highest) value of f()
 
+
+### Playing
+test_orfs[1] %>%
+GetGeneDatamatrix5start(gene,
+                        dataset,
+                        hdf5file,
+                        Get5UTRstart(gene, gff_df),
+                        UTR5full = UTR5_length(gene, gff_df), 
+                        nnt_gene = 50)
+
+
+
+
+ %>%
+  Reduce("+", .) %>% # sums the list of data matrices
+  TidyDatamatrix(startpos = -250 + 1, startlen = 10)
+
+startpos:(startpos + ncol(data_mat) - 1)
+
+play
+
+#we don't want the reduce function at all-bc it compresses different genes intothe same positions
+#instead I need to find a way to modify the TidyDataMatrix without the reduce function
+
+  
+
+TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
+  # CHECK startpos/off-by-one
+  positions <- startpos:(startpos + ncol(data_mat) - 1)
+  readlengths <- startlen:(startlen + nrow(data_mat) - 1)
+  data_mat %>%
+    set_colnames(positions) %>%
+    as_tibble() %>%
+    mutate(ReadLen = readlengths) %>%
+    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
+}
