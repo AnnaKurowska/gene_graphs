@@ -39,7 +39,7 @@ vignettes/*.pdf
 .Renviron
 
 #ignore other files
-/input/*.*
+/input/*
 
 #ignore G-Sc_2014
 /G-Sc_2014/*
