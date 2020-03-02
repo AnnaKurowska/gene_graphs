@@ -1,6 +1,10 @@
-#Planning:
+rm(list=ls())
+if (!require(xlsx)){
+  install.packages("xlsx")
+  library(xlsx)
+}
 
-source("gener")
+#Planning:
 
 #basically the GetGeneDataMatrix seems fine:
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
@@ -69,20 +73,20 @@ GetGeneDatamatrix5start <- function(gene, dataset, hdf5file,
   #I'm changing the n_left to just 1st nt of 5'UTR
       n_left5 <- Get5UTRstart # column to start from (5'end)
     zeropad5_mat <- matrix(0, nrow = nrow(data_mat_all), ncol = 0)
-    #or ncol = (n_buffer - posn_5start + 1)
+   
   n_right3 <- UTR5full + nnt_gene - 1 # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5:n_right3]
   return(cbind(zeropad5_mat, data_mat_5start))
 }
 
 interesting <-
-  lapply(test_orfs,
+  lapply(test_orfs[1],
          function(gene) 
            GetGeneDatamatrix5start(gene,
                                    dataset,
                                    hdf5file,
-                                   Get5UTRstart(gene, gff_df),
-                                   UTR5full = UTR5_length(gene, gff_df), 
+                                   Get5UTRstart(gene, gffdf = gff_df),
+                                   UTR5full = UTR5_length(gene, gffdf = gff_df), 
                                    nnt_gene = 50)
   ) %>%
   Reduce("+", .) %>% # sums the list of data matrices
@@ -105,74 +109,7 @@ TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
 }
 
-### the function
-interesting <-
-  lapply(test_orfs[1],
-         function(gene) 
-           GetGeneDatamatrix5start(gene,
-                                   dataset,
-                                   hdf5file,
-                                   UTR5full = UTR5_length(gene, UTR5_length_table_output), 
-                                   n_buffer = 250,
-                                   nnt_gene = 50)
-  ) 
-
-str(interesting)
-    #List of 5
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-as_tibble(interesting)
-# Error: Columns 1, 2, 3, 4, 5 must be named.
-# Use .name_repair to specify repair.
-# Run `rlang::last_error()` to see where the error occurred.
-
-
-#> names(interesting)
-#NULL
-
-names(interesting) <- test_orfs
-
-names(interesting)
-# [1] "YCR012W" "YEL009C" "YOR303W" "YOL130W" "YGR094W"
-
-#> str(interesting)
-# List of 5
-# $ YCR012W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YEL009C: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOR303W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOL130W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YGR094W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-# YAY :D :D
-#as_tibble(interesting, .name_repair ="minimal")
-# 
-# # A tibble: 41 x 5
-# YCR012W[,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10] [,11] [,12] [,13] [,14] [,15] [,16] [,17] [,18] [,19] [,20] [,21] [,22] [,23] [,24] [,25] [,26]
-# <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
-#   1           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-# 2           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-# 3           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-
-all_genes_all_info <- as_tibble(interesting, .name_repair ="minimal")
-# > str(all_genes_all_info)
-# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	41 obs. of  5 variables:
-#   $ YCR012W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YEL009C: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOR303W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOL130W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YGR094W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-# next, we investigate this: 
-# some of these bits are probably next steps...
-# as_tibble() %>%
-#   mutate(ReadLen = readlengths) %>%
-#   gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-#   mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-
+### the functio
 
 ##Selecting 5'UTR start position required for plotting
   #the function would identify the first position which identifies read counts and from that (or    this position+ for instance 10 nt just for visualization)
@@ -203,19 +140,23 @@ ggsave("Ania",plot = interesting1_plot, device = "png")
 
 Find() #returns the first element which matches the predicate (or the last element if right = TRUE).
 Position() #returns the position of the first element that matches the predicate (or the last element if right = TRUE).
+
+
 integrate() #finds the area under the curve defined by f()
 uniroot() #finds where f() hits zero
 optimise() #finds the location of lowest (or highest) value of f()
 
 
 ### Playing
-test_orfs[1] %>%
+gene <- as.list(test_orfs[1])
+gene %>%
 GetGeneDatamatrix5start(gene,
                         dataset,
                         hdf5file,
-                        Get5UTRstart(gene, gff_df),
-                        UTR5full = UTR5_length(gene, gff_df), 
+                        Get5UTRstart= Get5UTRstart(gene, gffdf = gff_df),
+                        UTR5full = UTR5_length(gene, gffdf = gff_df), 
                         nnt_gene = 50)
+traceback()
 
 
 
