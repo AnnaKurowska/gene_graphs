@@ -1,8 +1,31 @@
-#Planning:
+###Set up:
 
-source("gener")
+nnt_gene<- 50
+setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
 
-#basically the GetGeneDataMatrix seems fine:
+dataset <- "G-Sc_2014"
+hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
+
+# prepare files, opens hdf5 file connection
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+
+gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
+# next step is to test with these 5 genes only instead of all genes
+test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
+
+orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
+
+gff_df <- readGFFAsDf(orf_gff_file)
+
+####Functions
+
+readGFFAsDf <- purrr::compose(
+  rtracklayer::readGFFAsGRanges,
+  data.frame, 
+  as_tibble,
+  .dir = "forward" # functions called from left to right
+)
+
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
     rhdf5::H5Dopen(
@@ -12,235 +35,129 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     return()
 }
 
-#it just opens up the file and gives us datasets within.
-#but then we have to limit these to the ones we want
-  #we want: 5'UTR and for the start the entirety of the CDS, it's just easier that way
-
-# > gff_df
-# # A tibble: 17,436 x 10
-# seqnames  start   end width strand source      type  score phase Name     
-# <fct>     <int> <int> <int> <fct>  <fct>       <fct> <dbl> <int> <chr>    
-# 1 YAL068C       1   250   250 +      rtracklayer UTR5     NA    NA YAL068C  
-# 2 YAL068C     251   613   363 +      rtracklayer CDS      NA    NA YAL068C  
-# 3 YAL068C     614   863   250 +      rtracklayer UTR3     NA    NA YAL068C
-
-Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
+#two functions because GetGeneDatamatrix doesnt accept -ve values 
+Get_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
   gffdf %>% 
     dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
     dplyr::pull(start)
 }
 
-Get5UTRstart(name = test_orfs[1],gffdf = UTR5_length_table_output)
-
-# Changed ftype="CDS" to ftype="UTR5"
-
-#checked that Get5UTRstart works
-
-##5UTR length--> required to calculate n_right3 (I think at least)
-
-UTR5_length_table <- function(gffdf) {
-  gffdf %>%
-  mutate(UTR5L=gff_df$end-gff_df$start)
+Tidy_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+    dplyr::pull(UTR5start)
 }
 
-#instead of creating a new table, just reassign it as gff_df==that's gonna make it much simpler
-gff_df<-UTR5_length_table(gff_df)
+UTR5_length_table <- function(gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    filter(type==ftype, strand == fstrand)} 
 
+#### Modification of the table for the GetGeneDataMatrix(gff_df) and TidyMatrix function (gff_df2)
+
+table_modifications<- function(gffdf, ftype = "UTR5", fstrand = "+", End = "end", Start = "start") {
+gffdf %>%
+    filter(type==ftype, strand == fstrand) %>%
+  mutate(UTR5start = gffdf$End *-1, UTR5L = seq(gffdf$Start:gffdf$End), UTR5_end = gffdf$Start-2 ) %>%
+  select()
+} ##okay it's clearly not liking this function bc of the End and Start. I want to avoid gff_df$. but once it works out it can replace the commands below
+
+gff_df <- UTR5_length_table(gff_df)
+
+#this is separate for tidydatamatrix purpouses
+gff_df2 <- mutate(gff_df, UTR5L=gff_df$end-gff_df$start)
+gff_df2 <- mutate(gff_df, UTR5start = -(gff_df$end), UTR5_end = gff_df$start-2)
+gff_df2 <- gff_df2[ -c(2:4) ] #for the moment let's say it's correct
+
+##back to the functions 
 UTR5_length <- function(name, gffdf, ftype="UTR5", fstrand="+") {
   gffdf %>% 
     dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
     dplyr::pull(UTR5L)
 }
 
-#UTR5_length("YCR012W",UTR5_length_table)
-  #output: 249 "CORRECT"
-
-#now the issue us to use it in the next command-we dont really want the 5'UTR to be that long if it's not necessary 
-  #it would have to be individual to different sequences: 
-    #maybe the function could somehow count the threshold or something? 
-    #or the first column could start from the first footprint found<--this one sounds good 
-
-#GetGeneDataMatrix5Start: 
-#so this is supposed to give us the table from 5'UTR to the end of the CDS
-
 GetGeneDatamatrix5start <- function(gene, dataset, hdf5file, 
-                                    Get5UTRstart, UTR5full, nnt_gene) {
+                                    Get_Get5UTRstart, UTR5full, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  #I'm changing the n_left to just 1st nt of 5'UTR
-      n_left5 <- Get5UTRstart # column to start from (5'end)
-    zeropad5_mat <- matrix(0, nrow = nrow(data_mat_all), ncol = 0)
-    #or ncol = (n_buffer - posn_5start + 1)
+  #I'm changing n_left5 to just 1st nt of 5'UTR
+  n_left5 <- Get_Get5UTRstart # column to start from (5'end)
+  zeropad5_mat <- matrix(0, nrow = nrow(data_mat_all), ncol = 0)
+  #or ncol = (n_buffer - posn_5start + 1)
   n_right3 <- UTR5full + nnt_gene - 1 # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5:n_right3]
   return(cbind(zeropad5_mat, data_mat_5start))
 }
 
-interesting <-
-  lapply(test_orfs,
-         function(gene) 
-           GetGeneDatamatrix5start(gene,
-                                   dataset,
-                                   hdf5file,
-                                   Get5UTRstart(gene, gff_df),
-                                   UTR5full = UTR5_length(gene, gff_df), 
-                                   nnt_gene = 50)
-  ) %>%
-  Reduce("+", .) %>% # sums the list of data matrices
-  TidyDatamatrix(startpos = -250 + 1, startlen = 10)
+
+##### BEGINNING OF WORKING SPACE
+
+interesting <-lapply(test_orfs[1],
+                     function(gene)
+                       GetGeneDatamatrix5start(gene,
+                                               dataset,
+                                               hdf5file,
+                                               Get_Get5UTRstart(gene, gff_df),
+                                               UTR5full = UTR5_length(gene, gff_df),
+                                               nnt_gene)
+) 
+
+###Instead of TidyDataMatrix: 
+
+#all_genes_all_info <- as_tibble(interesting ) #I don't really get why that doesnt work, the only difference is that I am not specifying which gene even though it only contains 1 matrix. Am I opening up the matrix somehow with the second function? okay i think i know,the gene must be selected or otherwise it will turn all the lists into one tibble which isnt what we want 
+
+#here i need to look into a function that separates separate matrix for each gene? or that at least treates each matrix separately 
+
+wtf<-as_tibble(interesting$YCR012W, .name_repair ="minimal")
+
+UTR5_YCR012W<-Tidy_Get5UTRstart(test_orfs[1], gff_df2)
+
+positions <- UTR5_YCR012W : (UTR5_YCR012W +ncol(wtf)-1)
+
+try<-wtf %>% 
+  set_colnames(positions) %>%
+  gather(key="Position", value = "Counts") %>%
+  group_by(Position) %>%
+  summarise(Counts=sum(Counts))
+
+try<-arrange(try,try$Position) ##ok slightly breaking here
 
 
-#maybe I can assume that the reduce bit is fine
-#and then the TidyDataMatrix
+##### END OF WORKING SPACE
 
-#why is the startpos and startlen = 1?
-TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(data_mat) - 1)
-  readlengths <- startlen:(startlen + nrow(data_mat) - 1)
-  data_mat %>%
-    set_colnames(positions) %>%
-    as_tibble() %>%
-    mutate(ReadLen = readlengths) %>%
-    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-}
-
-### the function
-interesting <-
-  lapply(test_orfs[1],
-         function(gene) 
-           GetGeneDatamatrix5start(gene,
-                                   dataset,
-                                   hdf5file,
-                                   UTR5full = UTR5_length(gene, UTR5_length_table_output), 
-                                   n_buffer = 250,
-                                   nnt_gene = 50)
-  ) 
-
-str(interesting)
-    #List of 5
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ : num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-as_tibble(interesting)
-# Error: Columns 1, 2, 3, 4, 5 must be named.
-# Use .name_repair to specify repair.
-# Run `rlang::last_error()` to see where the error occurred.
-
-
-#> names(interesting)
-#NULL
-
-names(interesting) <- test_orfs
-
-names(interesting)
-# [1] "YCR012W" "YEL009C" "YOR303W" "YOL130W" "YGR094W"
-
-#> str(interesting)
-# List of 5
-# $ YCR012W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YEL009C: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOR303W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOL130W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YGR094W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-# YAY :D :D
-#as_tibble(interesting, .name_repair ="minimal")
-# 
-# # A tibble: 41 x 5
-# YCR012W[,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10] [,11] [,12] [,13] [,14] [,15] [,16] [,17] [,18] [,19] [,20] [,21] [,22] [,23] [,24] [,25] [,26]
-# <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
-#   1           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-# 2           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-# 3           0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
-
-all_genes_all_info <- as_tibble(interesting, .name_repair ="minimal")
-# > str(all_genes_all_info)
-# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	41 obs. of  5 variables:
-#   $ YCR012W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YEL009C: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOR303W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YOL130W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-# $ YGR094W: num [1:41, 1:298] 0 0 0 0 0 0 0 0 0 0 ...
-
-# next, we investigate this: 
-# some of these bits are probably next steps...
-# as_tibble() %>%
-#   mutate(ReadLen = readlengths) %>%
-#   gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-#   mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-
-
-##Selecting 5'UTR start position required for plotting
-  #the function would identify the first position which identifies read counts and from that (or    this position+ for instance 10 nt just for visualization)
-
-
-####Plotting
-
-interesting1<-interesting %>%
-  group_by(Pos) %>%
-  summarise(Counts=sum(Counts)
-  )
-
-interesting1<- arrange(interesting1,interesting1$Pos)
-
-#Plotting 
-
-interesting1_plot<-ggplot(
-  data=interesting1,) +
-  geom_histogram(aes(x=Pos, y=Counts), stat="identity") + 
+interesting_try<-ggplot(
+  data=try,) +
+  geom_histogram(aes(x=Position, y=Counts), stat="identity") + 
   theme_light() +
   labs(y= "Read count", x = "Position (mRNA)")
 
-ggsave("Ania",plot = interesting1_plot, device = "png")
-
+ggsave("Another_one", device = "png")
+#ok it's not the best plot ever but at least i know now what i need to do
 
 
 ### Potential functions?
 
-Find() #returns the first element which matches the predicate (or the last element if right = TRUE).
+Find() #returns the first element which matches the predicate (or the last element if right = TRUE). #That would be perfect if I wanted to for instnace only choose the first function at which it recognizes read counts
+
+
 Position() #returns the position of the first element that matches the predicate (or the last element if right = TRUE).
 integrate() #finds the area under the curve defined by f()
 uniroot() #finds where f() hits zero
 optimise() #finds the location of lowest (or highest) value of f()
 
 
-### Playing
-test_orfs[1] %>%
-GetGeneDatamatrix5start(gene,
-                        dataset,
-                        hdf5file,
-                        Get5UTRstart(gene, gff_df),
-                        UTR5full = UTR5_length(gene, gff_df), 
-                        nnt_gene = 50)
+# 
+# TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
+#   # CHECK startpos/off-by-one
+#   positions <- startpos:(startpos + ncol(data_mat) - 1)
+#   readlengths <- startlen:(startlen + nrow(data_mat) - 1)
+#   data_mat %>%
+#     set_colnames(positions) %>%
+#     as_tibble() %>%
+#     mutate(ReadLen = readlengths) %>%
+#     gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+#     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
+# }
 
 
+##Selecting 5'UTR start position required for plotting
+#the function would identify the first position which identifies read counts and from that (or    this position+ for instance 10 nt just for visualization)
 
-
- %>%
-  Reduce("+", .) %>% # sums the list of data matrices
-  TidyDatamatrix(startpos = -250 + 1, startlen = 10)
-
-startpos:(startpos + ncol(data_mat) - 1)
-
-play
-
-#we don't want the reduce function at all-bc it compresses different genes intothe same positions
-#instead I need to find a way to modify the TidyDataMatrix without the reduce function
-
-  
-
-TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(data_mat) - 1)
-  readlengths <- startlen:(startlen + nrow(data_mat) - 1)
-  data_mat %>%
-    set_colnames(positions) %>%
-    as_tibble() %>%
-    mutate(ReadLen = readlengths) %>%
-    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-}
