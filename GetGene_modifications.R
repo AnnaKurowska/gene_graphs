@@ -1,5 +1,8 @@
 ###Set up:
 
+# need this
+library(tibble)
+
 nnt_gene<- 50
 setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
 
@@ -8,23 +11,41 @@ hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
 
 # prepare files, opens hdf5 file connection
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# formal class H5IDComponent
 
 gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
+#  chr [1:5812] "Q0045" "Q0050"
+
 # next step is to test with these 5 genes only instead of all genes
 test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
 
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
+# chr [1:5] "YCR012W" "YEL009C"
 
-gff_df <- readGFFAsDf(orf_gff_file)
-
-####Functions
-
+# FLIC: moved function up 
 readGFFAsDf <- purrr::compose(
   rtracklayer::readGFFAsGRanges,
   data.frame, 
   as_tibble,
   .dir = "forward" # functions called from left to right
 )
+
+gff_df <- readGFFAsDf(orf_gff_file)
+# > str(gff_df)
+# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	17436 obs. of  10 variables:
+#   $ seqnames: Factor w/ 5812 levels "YAL001C","YAL002W",..: 68 68 68 67 67 67 66 66 66 65 ...
+# $ start   : int  1 251 614 1 251 479 1 251 2033 1 ...
+# $ end     : int  250 613 863 250 478 728 250 2032 2282 250 ...
+# $ width   : int  250 363 250 250 228 250 250 1782 250 250 ...
+# $ strand  : Factor w/ 3 levels "+","-","*": 1 1 1 1 1 1 1 1 1 1 ...
+# $ source  : Factor w/ 1 level "rtracklayer": 1 1 1 1 1 1 1 1 1 1 ...
+# $ type    : Factor w/ 3 levels "UTR5","CDS","UTR3": 1 2 3 1 2 3 1 2 3 1 ...
+# $ score   : num  NA NA NA NA NA NA NA NA NA NA ...
+# $ phase   : int  NA NA NA NA NA NA NA NA NA NA ...
+# $ Name    : chr  "YAL068C" "YAL068C" "YAL068C" "YAL067W-A" ...
+
+# used: purrr::compose(rtracklayer::readGFFAsGRanges, data.frame, as_tibble, .dir = "forward")
+# FLIC: use this to as_tibble stuff later?
 
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
@@ -35,58 +56,118 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     return()
 }
 
-#two functions because GetGeneDatamatrix doesnt accept -ve values 
-Get_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
-  gffdf %>% 
-    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+# gff_df %>%
+#   filter(type=="UTR5", strand == "+")
+# # A tibble: 5,812 x 10
+# seqnames  start   end width strand source      type  score phase Name     
+# <fct>     <int> <int> <int> <fct>  <fct>       <fct> <dbl> <int> <chr>    
+#   1 YAL068C     1   250   250 +      rtracklayer UTR5     NA    NA YAL068C  
+# 2 YAL067W-A     1   250   250 +      rtracklayer UTR5     NA    NA YAL067W-A
+
+# mutate() adds new variables, leaves old ones
+# transmute() adds new variables, drops old ones
+
+# THIS NEEDS RENAMING :D
+testfunction <- function(x){
+  x %>%
+    filter(type=="UTR5", strand == "+") %>%
+    # # A tibble: 5,812 x 10
+    mutate(utr5start = (end * -1), utr5end = (start -2))  # FLIC: should this be -2 or -1?
+}
+
+# apply the NEWLY RENAMED function ^^^
+utr5_data <- testfunction(gff_df)
+# > utr5_data
+# # A tibble: 5,812 x 4
+# Name      utr5start utr5end utr5len
+# <chr>         <dbl>   <dbl>   <dbl>
+# 1 YAL068C        -250      -1     250
+# 2 YAL067W-A      -250      -1     250
+# 3 YAL067C        -250      -1     250
+
+
+# data_mat_all <- GetGeneDatamatrix(test_orfs[1], dataset, hdf5file)
+# # > str(data_mat_all)
+# # int [1:41, 1:1751] 0 0 0 0
+
+# needs comments
+UTR5_length <- function(gene, x) {
+  x %>%
+    dplyr::filter(Name == gene) %>%
+    dplyr::pull(utr5len)
+}
+
+# needs comments
+Get5UTRstart <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene) %>% 
     dplyr::pull(start)
 }
 
-Tidy_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
-  gffdf %>% 
-    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
-    dplyr::pull(UTR5start)
-}
+# needs comments
+UTR5_length <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene) %>% 
+    dplyr::pull(width)
+} 
 
-UTR5_length_table <- function(gffdf, ftype="UTR5", fstrand="+") {
-  gffdf %>% 
-    filter(type==ftype, strand == fstrand)} 
+# needs comments
+UTR5_5start <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene) %>% 
+    dplyr::pull(utr5start)
+} 
 
-#### Modification of the table for the GetGeneDataMatrix(gff_df) and TidyMatrix function (gff_df2)
+# needs comments
+UTR5_5end <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene) %>% 
+    dplyr::pull(utr5end) + nnt_gene
+} 
 
-table_modifications<- function(gffdf, ftype = "UTR5", fstrand = "+", End = "end", Start = "start") {
-gffdf %>%
-    filter(type==ftype, strand == fstrand) %>%
-  mutate(UTR5start = gffdf$End *-1, UTR5L = seq(gffdf$Start:gffdf$End), UTR5_end = gffdf$Start-2 ) %>%
-  select()
-} ##okay it's clearly not liking this function bc of the End and Start. I want to avoid gff_df$. but once it works out it can replace the commands below
 
-gff_df <- UTR5_length_table(gff_df)
-
-#this is separate for tidydatamatrix purpouses
-gff_df2 <- mutate(gff_df, UTR5L=gff_df$end-gff_df$start)
-gff_df2 <- mutate(gff_df, UTR5start = -(gff_df$end), UTR5_end = gff_df$start-2)
-gff_df2 <- gff_df2[ -c(2:4) ] #for the moment let's say it's correct
-
-##back to the functions 
-UTR5_length <- function(name, gffdf, ftype="UTR5", fstrand="+") {
-  gffdf %>% 
-    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
-    dplyr::pull(UTR5L)
-}
-
-GetGeneDatamatrix5start <- function(gene, dataset, hdf5file, 
-                                    Get_Get5UTRstart, UTR5full, nnt_gene) {
+# Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
+GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, utr5_data, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   #I'm changing n_left5 to just 1st nt of 5'UTR
-  n_left5 <- Get_Get5UTRstart # column to start from (5'end)
-  zeropad5_mat <- matrix(0, nrow = nrow(data_mat_all), ncol = 0)
-  #or ncol = (n_buffer - posn_5start + 1)
-  n_right3 <- UTR5full + nnt_gene - 1 # column to end with (3'end) 
-  data_mat_5start <- data_mat_all[, n_left5:n_right3]
-  return(cbind(zeropad5_mat, data_mat_5start))
+  n_left5 <- Get5UTRstart(gene, utr5_data) # column to start from (5'end)
+  n_right3 <- UTR5_length(gene, utr5_data) + nnt_gene # column to end with (3'end) 
+  data_mat_5start <- data_mat_all[, n_left5 : n_right3]
+  posn5start <- UTR5_5start(gene, utr5_data) # get utr5 start position (e.g. -250)
+  posn5end <- UTR5_5end(gene, utr5_data) # get utr5 end position (e.g. -1) + nnt_gene
+  data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+  names(data_mat_5start) <- as.character(seq(from=posn5start, to=posn5end)) # add position as character 'name's to columns
+  data_mat_5start <-tibble::add_column(data_mat_5start, read_length=10:50, .before=1) # minreadlength:maxreadlength
+  return(data_mat_5start)
+  #return(data_mat_5start, posn5start, posn5end)
 }
 
+# for one gene! (UTR5 + nnt_gene of CDS, with positions relative to CDS starting at 0, read_length is additional column)
+utr5Matrix_1gene <- GetGeneDatamatrix5UTR(test_orfs[1], dataset, hdf5file, utr5_data, nnt_gene)
+# > utr5Matrix_1gene
+# # A tibble: 41 x 301
+# read_length `-250` `-249` `-248` `-247` `-246` `-245` `-244` `-243` `-242`
+# <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>
+#   1        10      0      0      0      0      0      0      0      0      0
+# 2          11      0      0      0      0      0      0      0      0      0
+# 3          12      0      0      0      0      0      0      0      0      0
+
+# utr5Matrix_allGene <- #
+  # :s
+  
+# want to replicate this, but not with lapply.
+# interesting <-lapply(test_orfs,
+#                      function(gene)
+#                        GetGeneDatamatrix5start(gene,
+#                                                dataset,
+#                                                hdf5file,
+#                                                Get_Get5UTRstart(gene, gff_df),
+#                                                UTR5full = UTR5_length(gene, gff_df),
+#                                                nnt_gene)
+# ) 
+
+
+# ------------------------------------------------------------------------------
 
 ##### BEGINNING OF WORKING SPACE
 
@@ -105,12 +186,6 @@ interesting <-lapply(test_orfs[1],
 #all_genes_all_info <- as_tibble(interesting ) #I don't really get why that doesnt work, the only difference is that I am not specifying which gene even though it only contains 1 matrix. Am I opening up the matrix somehow with the second function? okay i think i know,the gene must be selected or otherwise it will turn all the lists into one tibble which isnt what we want 
 
 #here i need to look into a function that separates separate matrix for each gene? or that at least treates each matrix separately 
-
-wtf<-as_tibble(interesting$YCR012W, .name_repair ="minimal")
-
-UTR5_YCR012W<-Tidy_Get5UTRstart(test_orfs[1], gff_df2)
-
-positions <- UTR5_YCR012W : (UTR5_YCR012W +ncol(wtf)-1)
 
 try<-wtf %>% 
   set_colnames(positions) %>%
