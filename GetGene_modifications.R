@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-rm(list=ls())
-if (!require(xlsx)){
-  install.packages("xlsx")
-  library(xlsx)
-}
-
-#Planning:
-
-#basically the GetGeneDataMatrix seems fine:
-=======
 ###Set up:
 
 # need this
@@ -59,7 +48,6 @@ gff_df <- readGFFAsDf(orf_gff_file)
 # used: purrr::compose(rtracklayer::readGFFAsGRanges, data.frame, as_tibble, .dir = "forward")
 # FLIC: use this to as_tibble stuff later?
 
->>>>>>> 1aaa8cea6ea77b8a48e506e09048f49e5ac3be60
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
     rhdf5::H5Dopen(
@@ -200,56 +188,10 @@ names(utr5Matrix_allGenes) <- test_orfs
 # 3          12      0      0      0      0      0      0      0      0      0
 # 4          13      0      0      0      0      0      0      0      0      0
 
-<<<<<<< HEAD
-GetGeneDatamatrix5start <- function(gene, dataset, hdf5file, 
-                                    Get5UTRstart, UTR5full, nnt_gene) {
-  data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  #I'm changing the n_left to just 1st nt of 5'UTR
-      n_left5 <- Get5UTRstart # column to start from (5'end)
-    zeropad5_mat <- matrix(0, nrow = nrow(data_mat_all), ncol = 0)
-   
-  n_right3 <- UTR5full + nnt_gene - 1 # column to end with (3'end) 
-  data_mat_5start <- data_mat_all[, n_left5:n_right3]
-  return(cbind(zeropad5_mat, data_mat_5start))
-}
-
-interesting <-
-  lapply(test_orfs[1],
-         function(gene) 
-           GetGeneDatamatrix5start(gene,
-                                   dataset,
-                                   hdf5file,
-                                   Get5UTRstart(gene, gffdf = gff_df),
-                                   UTR5full = UTR5_length(gene, gffdf = gff_df), 
-                                   nnt_gene = 50)
-  ) %>%
-  Reduce("+", .) %>% # sums the list of data matrices
-  TidyDatamatrix(startpos = -250 + 1, startlen = 10)
-
-
-#maybe I can assume that the reduce bit is fine
-#and then the TidyDataMatrix
-
-#why is the startpos and startlen = 1?
-TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(data_mat) - 1)
-  readlengths <- startlen:(startlen + nrow(data_mat) - 1)
-  data_mat %>%
-    set_colnames(positions) %>%
-    as_tibble() %>%
-    mutate(ReadLen = readlengths) %>%
-    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-}
-
-### the functio
-=======
 # ------------------------------------------------------------------------------
 
 
 ###Instead of TidyDataMatrix: 
->>>>>>> 1aaa8cea6ea77b8a48e506e09048f49e5ac3be60
 
 #all_genes_all_info <- as_tibble(interesting ) #I don't really get why that doesnt work, the only difference is that I am not specifying which gene even though it only contains 1 matrix. Am I opening up the matrix somehow with the second function? okay i think i know,the gene must be selected or otherwise it will turn all the lists into one tibble which isnt what we want 
 
@@ -282,36 +224,11 @@ Find() #returns the first element which matches the predicate (or the last eleme
 
 
 Position() #returns the position of the first element that matches the predicate (or the last element if right = TRUE).
-
-
 integrate() #finds the area under the curve defined by f()
 uniroot() #finds where f() hits zero
 optimise() #finds the location of lowest (or highest) value of f()
 
 
-<<<<<<< HEAD
-### Playing
-gene <- as.list(test_orfs[1])
-gene %>%
-GetGeneDatamatrix5start(gene,
-                        dataset,
-                        hdf5file,
-                        Get5UTRstart= Get5UTRstart(gene, gffdf = gff_df),
-                        UTR5full = UTR5_length(gene, gffdf = gff_df), 
-                        nnt_gene = 50)
-traceback()
-
-
-
-
- %>%
-  Reduce("+", .) %>% # sums the list of data matrices
-  TidyDatamatrix(startpos = -250 + 1, startlen = 10)
-
-startpos:(startpos + ncol(data_mat) - 1)
-
-play
-=======
 # 
 # TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
 #   # CHECK startpos/off-by-one
@@ -324,7 +241,6 @@ play
 #     gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
 #     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
 # }
->>>>>>> 1aaa8cea6ea77b8a48e506e09048f49e5ac3be60
 
 
 ##Selecting 5'UTR start position required for plotting
