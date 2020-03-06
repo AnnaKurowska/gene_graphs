@@ -172,8 +172,6 @@ x<-lapply(test_orfs, function(gene) GetGeneDatamatrix5UTR(gene=test_orfs, datase
 # ) 
 
 
-# ------------------------------------------------------------------------------
-
 ##### BEGINNING OF WORKING SPACE
 
 interesting <-lapply(test_orfs[1],
@@ -185,7 +183,6 @@ interesting <-lapply(test_orfs[1],
                                                UTR5full = UTR5_length(gene, gff_df),
                                                nnt_gene)
 ) 
-
 
 try<-utr5Matrix_1gene %>% 
   gather(key="Position", value = "Counts") %>%
@@ -211,23 +208,11 @@ Find() #returns the first element which matches the predicate (or the last eleme
 
 
 Position() #returns the position of the first element that matches the predicate (or the last element if right = TRUE).
+
+
 integrate() #finds the area under the curve defined by f()
 uniroot() #finds where f() hits zero
 optimise() #finds the location of lowest (or highest) value of f()
-
-
-# 
-# TidyDatamatrix <- function(data_mat, startpos = 1, startlen = 1) {
-#   # CHECK startpos/off-by-one
-#   positions <- startpos:(startpos + ncol(data_mat) - 1)
-#   readlengths <- startlen:(startlen + nrow(data_mat) - 1)
-#   data_mat %>%
-#     set_colnames(positions) %>%
-#     as_tibble() %>%
-#     mutate(ReadLen = readlengths) %>%
-#     gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-#     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts))
-# }
 
 
 ##Selecting 5'UTR start position required for plotting
