@@ -1,0 +1,189 @@
+---
+title: "GeneGraphs"
+output:
+  html_document: default
+---
+## Purpouse 
+
+This script processes raw ribosome profiling data in order to visualize mapping of ribosome footprints to the transcriptome. The purpouse is to identify  alternative upstream translation initiation and quantify it in respect to canonical initiation.
+
+
+```{r the set up}
+#Loading libraries
+
+library(rhdf5)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(purrr)
+library(ggplot2)
+
+#Set up
+
+nnt_gene<- 50
+
+setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
+
+# prepare files, opens hdf5 file connection
+dataset <- "G-Sc_2014"
+
+hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
+
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+
+gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
+
+# next step is to test with these 5 genes only instead of all genes
+test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
+
+# 
+orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
+
+gff_df <- readGFFAsDf(orf_gff_file)
+
+```
+
+```{r set up}
+head(gff_df)
+```
+## Functions
+
+These functions are used to create a matrix of read lengths, positions and read counts. Get_Get5UTRstart, UTR5_length_table, table_modifications, UTR5_length_table, UTR5_length_table, UTR5_length set up parameters for matrix).
+
+Function table_modifications doesn't work yet.
+
+``` {r functions}
+
+##Opening the gff file
+readGFFAsDf <- purrr::compose(
+  rtracklayer::readGFFAsGRanges,
+  data.frame, 
+  as_tibble,
+  .dir = "forward" # functions called from left to right
+)
+
+##Finding the 5'UTR start position
+#For GetGeneDataMatrixFunction (doesn't accept -ve values)
+Get_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+    dplyr::pull(start)
+}
+
+#For TidyDataMatrix purpouses (renaming positions)
+Tidy_Get5UTRstart <- function(name, gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+    dplyr::pull(UTR5start)
+}
+
+#Creates new columns which will be useful for establishing boundaries of the matrix
+table_modifications<- function(gffdf, ftype = "UTR5", fstrand = "+", End = "end", Start = "start") {
+gffdf %>%
+    filter(type==ftype, strand == fstrand) %>%
+  mutate(UTR5start = gffdf$End *-1, UTR5L = seq(gffdf$Start:gffdf$End), UTR5_end = gffdf$Start-2 ) %>%
+  select()
+}
+
+# Selects 5'UTR regions only for further modifications of the table
+UTR5_length_table <- function(gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    filter(type==ftype, strand == fstrand)} 
+
+#Pulls 5'UTR length for GetGeneDataMatrix 
+UTR5_length <- function(name, gffdf, ftype="UTR5", fstrand="+") {
+  gffdf %>% 
+    dplyr::filter(type==ftype, Name == name, strand == fstrand) %>% 
+    dplyr::pull(UTR5L)
+}
+
+#Function for GeneDataMatrix
+GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
+  hdf5file %>%
+    rhdf5::H5Dopen(
+      name = paste0("/", gene, "/", dataset, "/reads/data")
+    ) %>%
+    rhdf5::H5Dread() %>%
+    return()
+}
+
+# Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
+GetGeneDatamatrix5start <- function(gene, dataset, hdf5file, 
+                                    Get_Get5UTRstart, UTR5full, nnt_gene) {
+  data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
+  #I'm changing n_left5 to just 1st nt of 5'UTR
+  n_left5 <- Get_Get5UTRstart # column to start from (5'end)
+  n_right3 <- UTR5full + nnt_gene - 1 # column to end with (3'end) 
+  data_mat_5start <- data_mat_all[, n_left5:n_right3]
+  return(data_mat_5start)
+}
+
+```
+
+## The GetGeneDatamatrix5start
+
+This is what this function looks like when it is used.
+At the moment, it works well for one gene but we might have to modify it for multiple genes.
+
+Problems:
+-what to do with the apply?
+-should we modify it so it outputs one big tibble for all genes or individual tibble for each gene?
+
+``` {r applying functions}
+
+example <-lapply(test_orfs[1],
+                function(gene)
+                  GetGeneDatamatrix5start(gene,
+                          dataset,
+                          hdf5file,
+                          Get_Get5UTRstart(gene, gff_df),
+                          UTR5full = UTR5_length(gene, gff_df),
+                          nnt_gene)
+)  #change gffdf to x
+
+head(example)
+```
+## Tidying data
+
+The main struggle here is to get rid of the reduce() function, as we want to achieve the opposite; instead of summarizing data into metagenomic data, we want to get access into each gene separately.
+
+I do not really know how to make it run for each gene, but here are some of the steps to tidy the data
+
+``` {r tidying data}
+YCR012W<-as_tibble(interesting$YCR012W, .name_repair ="minimal")
+
+UTR5_YCR012W<-Tidy_Get5UTRstart(test_orfs[1], gff_df2)
+
+positions <- UTR5_YCR012W : (UTR5_YCR012W +ncol(wtf)-1)
+
+try<-YCR012W %>% 
+  set_colnames(positions) %>%
+  gather(key="Position", value = "Counts") %>%
+  group_by(Position) %>%
+  summarise(Counts=sum(Counts)) %>%
+  arrange(try$Position)
+ #For some reason, it doesn't actually arrange it
+
+try
+
+
+```
+
+## Plotting 
+
+Plotting with ggplot. Unfortunately the data isn't arranged (somehow that function doesn't always work).
+
+```{r plot bit}
+
+try_plot<-ggplot(
+  data=try,) +
+  geom_histogram(aes(x=as.numeric(Position), y=Counts), stat="identity") + 
+  theme_light() +
+  labs(y= "Read count", x = "Position (mRNA)") +
+  scale_x_discrete(limit = c(-100,-50,0,50))
+
+try_plot
+
+ggsave("try_plot_example", device = "png")
+
+```
