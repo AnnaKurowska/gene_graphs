@@ -18,9 +18,10 @@ gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
 
 # next step is to test with these 5 genes only instead of all genes
 test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
+# chr [1:5] "YCR012W" "YEL009C" "YOR303W" "YOL130W" "YGR094W"
+
 
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
-# chr [1:5] "YCR012W" "YEL009C"
 
 # FLIC: moved function up 
 readGFFAsDf <- purrr::compose(
@@ -77,25 +78,32 @@ testfunction <- function(x){
 
 # apply the NEWLY RENAMED function ^^^
 utr5_data <- testfunction(gff_df)
-# > utr5_data
-# # A tibble: 5,812 x 4
-# Name      utr5start utr5end utr5len
-# <chr>         <dbl>   <dbl>   <dbl>
-# 1 YAL068C        -250      -1     250
-# 2 YAL067W-A      -250      -1     250
-# 3 YAL067C        -250      -1     250
-
+# > str(utr5_data)
+# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	5812 obs. of  12 variables:
+#   $ seqnames : Factor w/ 5812 levels "YAL001C","YAL002W",..: 68 67 66 65 64 62 63 61 60 59 ...
+# $ start    : int  1 1 1 1 1 1 1 1 1 1 ...
+# $ end      : int  250 250 250 250 250 250 250 250 250 250 ...
+# $ width    : int  250 250 250 250 250 250 250 250 250 250 ...
+# $ strand   : Factor w/ 3 levels "+","-","*": 1 1 1 1 1 1 1 1 1 1 ...
+# $ source   : Factor w/ 1 level "rtracklayer": 1 1 1 1 1 1 1 1 1 1 ...
+# $ type     : Factor w/ 3 levels "UTR5","CDS","UTR3": 1 1 1 1 1 1 1 1 1 1 ...
+# $ score    : num  NA NA NA NA NA NA NA NA NA NA ...
+# $ phase    : int  NA NA NA NA NA NA NA NA NA NA ...
+# $ Name     : chr  "YAL068C" "YAL067W-A" "YAL067C" "YAL065C" ...
+# $ utr5start: num  -250 -250 -250 -250 -250 -250 -250 -250 -250 -250 ...
+# $ utr5end  : num  -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ...
 
 # data_mat_all <- GetGeneDatamatrix(test_orfs[1], dataset, hdf5file)
 # # > str(data_mat_all)
 # # int [1:41, 1:1751] 0 0 0 0
 
-# needs comments
-UTR5_length <- function(gene, x) {
-  x %>%
-    dplyr::filter(Name == gene) %>%
-    dplyr::pull(utr5len)
-}
+# FLIC: remove this as not creating utr5len, instead using 'width'.
+# # needs comments
+# UTR5_length <- function(gene, x) {
+#   x %>%
+#     dplyr::filter(Name == gene) %>%
+#     dplyr::pull(utr5len)
+# }
 
 # needs comments
 Get5UTRstart <- function(gene, x) {
@@ -146,40 +154,42 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, utr5_data, nnt_gene) 
 utr5Matrix_1gene <- GetGeneDatamatrix5UTR(test_orfs[1], dataset, hdf5file, utr5_data, nnt_gene)
 # > utr5Matrix_1gene
 # # A tibble: 41 x 301
-# read_length `-250` `-249` `-248` `-247` `-246` `-245` `-244` `-243` `-242`
-# <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>
-#   1        10      0      0      0      0      0      0      0      0      0
+#     read_length `-250` `-249` `-248` `-247` `-246` `-245` `-244` `-243` `-242`
+#           <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>
+# 1          10      0      0      0      0      0      0      0      0      0
 # 2          11      0      0      0      0      0      0      0      0      0
 # 3          12      0      0      0      0      0      0      0      0      0
 
-# utr5Matrix_allGene <- #
-  # :s
-  
-# want to replicate this, but not with lapply.
-# interesting <-lapply(test_orfs,
-#                      function(gene)
-#                        GetGeneDatamatrix5start(gene,
-#                                                dataset,
-#                                                hdf5file,
-#                                                Get_Get5UTRstart(gene, gff_df),
-#                                                UTR5full = UTR5_length(gene, gff_df),
-#                                                nnt_gene)
-# ) 
 
+# GetGeneDatamatrix5UTR function definition:
+# GetGeneDatamatrix5UTR(gene, dataset, hdf5file, utr5_data, nnt_gene)
+
+# map the function GetGeneDatamatrix5UTR to the genes in test_orfs for dataset utr5_data
+utr5Matrix_allGenes <- purrr::map(test_orfs, GetGeneDatamatrix5UTR, dataset, hdf5file, utr5_data, nnt_gene)
+
+# apply the names to each item in the list
+names(utr5Matrix_allGenes) <- test_orfs
+
+# > str(utr5Matrix_allGenes)
+# List of 5
+# $ YCR012W:Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	41 obs. of  301 variables:
+#   ..$ read_length: int [1:41] 10 11 12 13 14 15 16 17 18 19 ...
+# ..$ -250       : int [1:41] 0 0 0 0 0 0 0 0 0 0 ...
+# ..$ -249       : int [1:41] 0 0 0 0 0 0 0 0 0 0 ...
+# ..$ -248       : int [1:41] 0 0 0 0 0 0 0 0 0 0 ...
+
+# > utr5Matrix_allGenes
+# $YCR012W
+# # A tibble: 41 x 301
+#     read_length `-250` `-249` `-248` `-247` `-246` `-245` `-244` `-243` `-242`
+#           <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>
+# 1          10      0      0      0      0      0      0      0      0      0
+# 2          11      0      0      0      0      0      0      0      0      0
+# 3          12      0      0      0      0      0      0      0      0      0
+# 4          13      0      0      0      0      0      0      0      0      0
 
 # ------------------------------------------------------------------------------
 
-##### BEGINNING OF WORKING SPACE
-
-interesting <-lapply(test_orfs[1],
-                     function(gene)
-                       GetGeneDatamatrix5start(gene,
-                                               dataset,
-                                               hdf5file,
-                                               Get_Get5UTRstart(gene, gff_df),
-                                               UTR5full = UTR5_length(gene, gff_df),
-                                               nnt_gene)
-) 
 
 ###Instead of TidyDataMatrix: 
 
