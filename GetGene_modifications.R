@@ -174,13 +174,46 @@ names(utr5Matrix_allGenes) <- test_orfs
 # 3          12      0      0      0      0      0      0      0      0      0
 # 4          13      0      0      0      0      0      0      0      0      0
 
-try<-utr5Matrix_1gene %>% 
-  gather(key="Position", value = "Counts") %>%
-  group_by(Position) %>%
-  summarise(Counts=sum(Counts)) %>%
-  arrange(try$Position)
+# pivot_longer()
+# Development on gather() is complete, and for new code we recommend switching 
+# to pivot_longer(), which is easier to use, more featureful, and still under 
+# active development. df %>% gather("key", "value", x, y, z) is equivalent to 
+#to df %>% pivot_longer(c(x, y, z), names_to = "key", values_to = "value")
 
-try<-arrange(try,try$Position) ##ok slightly breaking here
+
+GetPosnCountOutput <- function(x){
+  output_thing <- x %>% 
+    gather(-read_length, key="Position", value = "Counts") %>%
+    group_by(Position) %>%
+    summarise(Counts=sum(Counts)) %>%
+    arrange(as.integer(Position))
+  return(output_thing)
+}
+
+PosnCountAllgenes <- purrr::map(utr5Matrix_allGenes, GetPosnCountOutput)
+
+# > PosnCountAllgenes
+# $YCR012W
+# # A tibble: 300 x 2
+# Position Counts
+# <chr>     <int>
+#   1 -250          0
+# 2 -249          0
+# 3 -248          0
+# 4 -247          0
+# 5 -246          0
+# 6 -245          0
+# 7 -244          0
+# 8 -243          0
+# 9 -242          0
+# 10 -241          0
+# # … with 290 more rows
+# 
+# $YEL009C
+# # A tibble: 300 x 2
+# Position Counts
+# <chr>     <int>
+
 
 interesting_try<-ggplot(
   data=try,) +
