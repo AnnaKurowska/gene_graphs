@@ -128,7 +128,6 @@ CDS3_end <- function(gene, x) {
 # Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
 GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, utr5_data, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  #I'm changing n_left5 to just 1st nt of 5'UTR
   n_left5 <- Get5UTRstart(gene, utr5_data) # column to start from (5'end)
   n_right3 <- UTR5_length(gene, utr5_data) + nnt_gene # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
@@ -150,6 +149,13 @@ utr5Matrix_1gene <- GetGeneDatamatrix5UTR(test_orfs[1], dataset, hdf5file, utr5_
 #   1        10      0      0      0      0      0      0      0      0      0
 # 2          11      0      0      0      0      0      0      0      0      0
 # 3          12      0      0      0      0      0      0      0      0      0
+
+
+x<-lapply(test_orfs, function(gene) GetGeneDatamatrix5UTR(gene=test_orfs, dataset, hdf5file, utr5_data, nnt_gene))
+#doesnt work for test_orfs 
+    # Error in rhdf5::H5Dopen(., name = paste0("/", gene, "/", dataset, "/reads/data")) : 
+  #'filename' must be a character string of length 1 
+#somehow it outputs lists of 5 no matter what the test_orfs[] is, gene_names=also 5 tibbles...
 
 # utr5Matrix_allGene <- #
   # :s
