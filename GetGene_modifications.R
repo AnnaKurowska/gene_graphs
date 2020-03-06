@@ -22,7 +22,7 @@ test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
 # chr [1:5] "YCR012W" "YEL009C"
 
-# FLIC: moved function up 
+# FLIC: Function to create a gff table  
 readGFFAsDf <- purrr::compose(
   rtracklayer::readGFFAsGRanges,
   data.frame, 
@@ -47,6 +47,7 @@ gff_df <- readGFFAsDf(orf_gff_file)
 # used: purrr::compose(rtracklayer::readGFFAsGRanges, data.frame, as_tibble, .dir = "forward")
 # FLIC: use this to as_tibble stuff later?
 
+#This will be used to create a matrix from hdf5file
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
     rhdf5::H5Dopen(
@@ -67,16 +68,14 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
 # mutate() adds new variables, leaves old ones
 # transmute() adds new variables, drops old ones
 
-# THIS NEEDS RENAMING :D
-testfunction <- function(x){
+modifyTo_5UTR_table <- function(x){
   x %>%
     filter(type=="UTR5", strand == "+") %>%
     # # A tibble: 5,812 x 10
     mutate(utr5start = (end * -1), utr5end = (start -2))  # FLIC: should this be -2 or -1?
 }
 
-# apply the NEWLY RENAMED function ^^^
-utr5_data <- testfunction(gff_df)
+utr5_data <- modifyTo_5UTR_table(gff_df)
 # > utr5_data
 # # A tibble: 5,812 x 4
 # Name      utr5start utr5end utr5len
@@ -90,36 +89,36 @@ utr5_data <- testfunction(gff_df)
 # # > str(data_mat_all)
 # # int [1:41, 1:1751] 0 0 0 0
 
-# needs comments
-UTR5_length <- function(gene, x) {
-  x %>%
-    dplyr::filter(Name == gene) %>%
-    dplyr::pull(utr5len)
-}
+# # Takes value for length of 5'UTR--not really needed anymore bc of width
+# UTR5_length <- function(gene, x) {
+#   x %>%
+#     dplyr::filter(Name == gene) %>%
+#     dplyr::pull(utr5len)
+# }
 
-# needs comments
+# Takes value for start position of 5'UTR for matrix creation (no negative values e.g.: 1)
 Get5UTRstart <- function(gene, x) {
   x %>% 
     dplyr::filter(Name == gene) %>% 
     dplyr::pull(start)
 }
 
-# needs comments
+# Takes value for length of 5'UTR  
 UTR5_length <- function(gene, x) {
   x %>% 
     dplyr::filter(Name == gene) %>% 
     dplyr::pull(width)
 } 
 
-# needs comments
+# Takes value for start position of 5'UTR for naming matrix col's (:-250)
 UTR5_5start <- function(gene, x) {
   x %>% 
     dplyr::filter(Name == gene) %>% 
     dplyr::pull(utr5start)
 } 
 
-# needs comments
-UTR5_5end <- function(gene, x) {
+# Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
+CDS3_end <- function(gene, x) {
   x %>% 
     dplyr::filter(Name == gene) %>% 
     dplyr::pull(utr5end) + nnt_gene
@@ -134,7 +133,7 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, utr5_data, nnt_gene) 
   n_right3 <- UTR5_length(gene, utr5_data) + nnt_gene # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
   posn5start <- UTR5_5start(gene, utr5_data) # get utr5 start position (e.g. -250)
-  posn5end <- UTR5_5end(gene, utr5_data) # get utr5 end position (e.g. -1) + nnt_gene
+  posn5end <- CDS3_end(gene, utr5_data) # get utr5 end position (e.g. -1) + nnt_gene
   data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   names(data_mat_5start) <- as.character(seq(from=posn5start, to=posn5end)) # add position as character 'name's to columns
   data_mat_5start <-tibble::add_column(data_mat_5start, read_length=10:50, .before=1) # minreadlength:maxreadlength
@@ -181,22 +180,14 @@ interesting <-lapply(test_orfs[1],
                                                nnt_gene)
 ) 
 
-###Instead of TidyDataMatrix: 
 
-#all_genes_all_info <- as_tibble(interesting ) #I don't really get why that doesnt work, the only difference is that I am not specifying which gene even though it only contains 1 matrix. Am I opening up the matrix somehow with the second function? okay i think i know,the gene must be selected or otherwise it will turn all the lists into one tibble which isnt what we want 
-
-#here i need to look into a function that separates separate matrix for each gene? or that at least treates each matrix separately 
-
-try<-wtf %>% 
-  set_colnames(positions) %>%
+try<-utr5Matrix_1gene %>% 
   gather(key="Position", value = "Counts") %>%
   group_by(Position) %>%
-  summarise(Counts=sum(Counts))
+  summarise(Counts=sum(Counts)) %>%
+  arrange(try$Position)
 
 try<-arrange(try,try$Position) ##ok slightly breaking here
-
-
-##### END OF WORKING SPACE
 
 interesting_try<-ggplot(
   data=try,) +
