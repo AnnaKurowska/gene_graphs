@@ -16,14 +16,15 @@ library(tibble)
 library(grid)
 
 ###Set up:
+WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
+WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
+hd_file <- WT_none
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
-gene1 <- "YCR012W"
 test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
 nnt_gene<- 50
 startpos <-250
@@ -109,7 +110,7 @@ TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
 }
 
 #plotting function
-plot<- function(x, gene) {
+plotting_5UTR<- function(x, gene) {
   my_title <-title(gene)  #it wooooooorks!
   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
   #the actual plotting 
@@ -119,7 +120,6 @@ plot<- function(x, gene) {
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "Read count", x = "Position") +
     ggtitle(my_title) + 
-    annotate("text", x = 0, y = -3, label = "Some text") +
     # coord_cartesian(clip = "off") + 
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
     theme_classic()
@@ -145,7 +145,7 @@ UTR5_plot <- function(gene) {
   )%>%
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
-  plot(. , gene) %>%
+  plotting_5UTR(. , gene) %>%
   return()
 }
 
@@ -153,6 +153,8 @@ UTR5_plot <- function(gene) {
 final_function <- function(x){
  purrr::map(x, UTR5_plot)
 }
+
+final_function(x = test_orfs)
 
 ##working space:
 
