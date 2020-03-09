@@ -118,28 +118,36 @@ CDS3_end <- function(gene, x) {
 
 ##Modifications of the GFF table
 
-``` {r}
-#Visualize the original GFF created with gff_df <- readGFFAsDf(orf_gff_file)
-head(gff_df)
+```{r}
+#GFF initially
+gff_df
 
 ```
+
 
 ``` {r}
 utr5_data <- modifyTo_5UTR_table(gff_df)
-head(utr5_data )
+head(utr5_data)
 ```
 Columns start and end are used to establish number of columns in the matrix (col 1:300). 
 Columns utr5start and utr5end are used to name columns with biologically accurate names for positions (col -250:50--> -250 is 5'UTR start and 50 is first 50nt of CDS). 
+
 ## The GetGeneDatamatrix5UTR
+``` {r}
+#for 1 gene
+utr5Matrix_1gene <- GetGeneDatamatrix5UTR(test_orfs[1], dataset, hdf5file, utr5_data, nnt_gene)
+
+
+```
+
 
 ``` {r}
-# map the function GetGeneDatamatrix5UTR to the genes in test_orfs for dataset utr5_data
+# for test_orfs (5 genes)
 utr5Matrix_allGenes <- purrr::map(test_orfs, GetGeneDatamatrix5UTR, dataset, hdf5file, utr5_data, nnt_gene)
 
 # apply the names to each item in the list
 names(utr5Matrix_allGenes) <- test_orfs
 
-head(utr5Matrix_allGenes)
 ```
 
 ## Tidying data
@@ -161,7 +169,7 @@ PosnCountAllgenes <- purrr::map(utr5Matrix_allGenes, GetPosnCountOutput)
 
 ## Plotting 
 
-Plotting with ggplot. Unfortunately the data isn't arranged (somehow that function doesn't always work).
+Plotting with ggplot.
 
 ```{r plot bit}
 #That's for a single gene for now (previous attempts were done on 1 gene only)
