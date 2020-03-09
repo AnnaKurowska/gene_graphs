@@ -8,8 +8,10 @@ output:
 This script processes raw ribosome profiling data in order to visualize mapping of ribosome footprints to the transcriptome. The purpouse is to identify  alternative upstream translation initiation and quantify it in respect to canonical initiation.
 
 
-```{r the set up}
+```{r eval=TRUE}
 #Loading libraries
+knitr :: opts_knit$set(error = TRUE )
+getwd()
 
 library(rhdf5)
 library(tidyr)
@@ -30,15 +32,16 @@ hd_file <- "G-Sc_2014/output/WTnone/WTnone.h5"
 # prepare files, opens hdf5 file connection
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 # formal class H5IDComponent
+attach(hdf5file)
 
 gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
 #  chr [1:5812] "Q0045" "Q0050"
-
+#
 # next step is to test with these 5 genes only instead of all genes
 test_orfs<- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
-
+#
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
-# chr [1:5] "YCR012W" "YEL009C"
+# # chr [1:5] "YCR012W" "YEL009C"
 
 #using function readGFFAsDf (defined in functions)
 gff_df <- readGFFAsDf(orf_gff_file)
@@ -179,8 +182,6 @@ try_plot<-ggplot(
   theme_light() +
   labs(y= "Read count", x = "Position (mRNA)") +
   scale_x_discrete(limit = c(-100,-50,0,50))
-
-try_plot
 
 ggsave("try_plot_example", device = "png")
 
