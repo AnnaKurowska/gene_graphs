@@ -110,6 +110,10 @@ TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
 }
 
 #plotting function
+title <- function(gene) {
+  paste("Ribosome footprint density of ", gene , sep= "")
+}
+
 plotting_5UTR<- function(x, gene) {
   my_title <-title(gene)  #it wooooooorks!
   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
@@ -129,9 +133,6 @@ plotting_5UTR<- function(x, gene) {
  #annotate("text", x = 0, y = -3, label = "Some text")
   #ok i know why the annotation custom doesnt work-that's because y axis is different for each graph
 
-title <- function(gene) {
-  paste("Ribosome footprint density of ", gene , sep= "")
-}
 
 #final function from raw data processing to data visualization
 UTR5_plot <- function(gene) {
@@ -142,7 +143,7 @@ UTR5_plot <- function(gene) {
                                  hdf5file,
                                  x=gff_df,
                                  nnt_gene = nnt_gene)
-  )%>%
+  )%>% #names() <-paste0(gene, SAMPLETBC)
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
   plotting_5UTR(. , gene) %>%
@@ -151,25 +152,53 @@ UTR5_plot <- function(gene) {
 
 #the final function i'd use :)
 final_function <- function(x){
- purrr::map(x, UTR5_plot)
+ purrr::map(x, UTR5_plot) 
 }
 
-final_function(x = test_orfs)
+sample1 <- final_function(x = test_orfs)
 
-##working space:
+naming_genes(plot_object = sample1, gen_names = test_orfs)
 
-UTR5_plot_test <- function(gene) {
-  lapply(gene,
-         function(gene) 
-           GetGeneDatamatrix5UTR(gene,
-                                 dataset,
-                                 hdf5file,
-                                 x=gff_df,
-                                 nnt_gene = nnt_gene)
-  )%>%
-    Reduce("+", .) %>% # sums the list of data matrices
-    TidyDatamatrix(startpos = -250, startlen = 10)
-}
-xxx<-UTR5_plot_test(test_orfs[1]) #no AUGs for any of them except 1 if done that way 
-plotx<-plot(xxx,test_orfs[1])
-plotx
+names(sample2) <-test_orfs
+
+hd_file <- WT_none
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+
+sample1 <- final_function(x = test_orfs)
+names(sample1) <-test_orfs
+
+######
+#so now we need to create a plot including both 
+
+sample1_tibble1 <- sample1[[1]]$data
+sample2_tibble1 <- sample2[[1]]$data
+
+more_plots <- ggplot(sample1_tibble1) + 
+  geom_density(aes(x=Pos, y=Counts), stat="identity") +
+  geom_density(data = sample2_tibble1, aes(x=Pos, y= Counts), stat="identity", color = "red") +
+  scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  labs(y= "Read count", x = "Position") +
+  theme_classic()
+
+ggsave("YEEEAH", device = "jpg")
+
+
+
+# ##working space: for the AUG issue
+# 
+# UTR5_plot_test <- function(gene) {
+#   lapply(gene,
+#          function(gene) 
+#            GetGeneDatamatrix5UTR(gene,
+#                                  dataset,
+#                                  hdf5file,
+#                                  x=gff_df,
+#                                  nnt_gene = nnt_gene)
+#   )%>%
+#     Reduce("+", .) %>% # sums the list of data matrices
+#     TidyDatamatrix(startpos = -250, startlen = 10)
+# }
+# xxx<-UTR5_plot_test(test_orfs[1]) #no AUGs for any of them except 1 if done that way 
+# plotx<-plot(xxx,test_orfs[1])
+# plotx
