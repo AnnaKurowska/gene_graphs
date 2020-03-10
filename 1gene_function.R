@@ -107,35 +107,10 @@ TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
     group_by(Pos) %>%
     summarise(Counts=sum(Counts))
-}
-
-#plotting function
-title <- function(gene) {
-  paste("Ribosome footprint density of ", gene , sep= "")
-}
-
-plotting_5UTR<- function(x, gene) {
-  my_title <-title(gene)  #it wooooooorks!
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  #the actual plotting 
-  plotted_UTR <- ggplot(x) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(my_title) + 
-    # coord_cartesian(clip = "off") + 
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
-    theme_classic()
-}
-
-##Tried and doesnt work:
- #annotate("text", x = 0, y = -3, label = "Some text")
-  #ok i know why the annotation custom doesnt work-that's because y axis is different for each graph
 
 
 #final function from raw data processing to data visualization
-UTR5_plot <- function(gene) {
+UTR5_table <- function(gene) {
   lapply(gene,
          function(gene) 
            GetGeneDatamatrix5UTR(gene,
@@ -146,32 +121,91 @@ UTR5_plot <- function(gene) {
   )%>% #names() <-paste0(gene, SAMPLETBC)
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
-  plotting_5UTR(. , gene) %>%
   return()
 }
 
-#the final function i'd use :)
-final_function <- function(x){
- purrr::map(x, UTR5_plot) 
+
+####trying to change the name within 
+a<-UTR5_table(test_orfs[1])
+names(a) <-paste("Gene name", test_orfs[1], sep = "") #this only names one 1 col 
+
+
+#the final function i'd use :) iteration of UTR5_table 
+final_function_table <- function(x){
+ purrr::map(x, UTR5_table) 
 }
 
-sample1 <- final_function(x = test_orfs)
+output_orfs<-final_function_table(test_orfs) #it works just fine 
 
-naming_genes(plot_object = sample1, gen_names = test_orfs)
+######plotting
 
-names(sample2) <-test_orfs
+#title function used within plotting_5UTR
+title <- function(gene) {
+  paste("Ribosome footprint density of ", gene , sep= "")
+}
 
-hd_file <- WT_none
+#main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
+plotting_5UTR<- function(x, gene) {
+  my_title <-title(gene)  #it wooooooorks!
+  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  
+  #the actual plotting 
+  plotted_UTR <- ggplot(x) +
+    geom_density(aes(x=Pos, y=Counts), stat="identity") +
+    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    ggtitle(my_title) + 
+    # coord_cartesian(clip = "off") + 
+    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
+    theme_classic()
+}
+
+######### multiple plots 
+###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
+plotting_multiple <- function(x, gene) {
+  purrr :: map(x, plotting_5UTR, gene) %>%
+    ggarrange(plotlist = .) %>%
+    return()
+    #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
+}
+xxx<-plotting_multiple(output_orfs, test_orfs) 
+#issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
+
+ggsave("multiple", device = "jpg")
+
+
+
+###### 2 in one
+
+#for WT_none
+output_orfs<-final_function_table(test_orfs)
+
+# for WT_3AT
+
+hd_file <- WT_3AT
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
-sample1 <- final_function(x = test_orfs)
-names(sample1) <-test_orfs
+output_orfs_3AT <-final_function_table(test_orfs)
 
 ######
 #so now we need to create a plot including both 
+##we need to select each tibble only (can use map again)
 
-sample1_tibble1 <- sample1[[1]]$data
-sample2_tibble1 <- sample2[[1]]$data
+
+###okay i absolutely can't be bothered to work on it anymore, im gonna move to the zooming in bit
+two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
+
+
+two_in_one_plots <- function(sample1, sample2) {
+  more_plots <- ggplot(sample1) + 
+    geom_density(aes(x=Pos, y=Counts), stat="identity") +
+    geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
+    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    theme_classic() 
+}
 
 more_plots <- ggplot(sample1_tibble1) + 
   geom_density(aes(x=Pos, y=Counts), stat="identity") +
@@ -179,7 +213,8 @@ more_plots <- ggplot(sample1_tibble1) +
   scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
   labs(y= "Read count", x = "Position") +
-  theme_classic()
+  theme_classic() 
+  #gotta create the legend 
 
 ggsave("YEEEAH", device = "jpg")
 
