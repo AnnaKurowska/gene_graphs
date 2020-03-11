@@ -1,5 +1,7 @@
 #### Starting with one gene: YCR012W (PGK1)
 
+############################################################################################
+                                        ##set up##
 setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
 
 ##Libraries 
@@ -14,14 +16,17 @@ library(ggplot2)
 library(ggpubr)
 library(tibble)
 library(grid)
+library(expss) #for count_col_if
+library(HH) #  for position()
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
 WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_none
+hd_file <- WT_CHX
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
@@ -30,9 +35,9 @@ nnt_gene<- 50
 startpos <-250
 startlen <- 10
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
-gff_df <- readGFFAsDf(orf_gff_file)
-
-##Functions
+gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
+############################################################################################
+                                    ##Functions##
 
 #This will be used to create a matrix from hdf5file
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
@@ -124,7 +129,6 @@ UTR5_table <- function(gene) {
   return()
 }
 
-
 ####trying to change the name within 
 a<-UTR5_table(test_orfs[1])
 names(a) <-paste("Gene name", test_orfs[1], sep = "") #this only names one 1 col 
@@ -132,12 +136,13 @@ names(a) <-paste("Gene name", test_orfs[1], sep = "") #this only names one 1 col
 
 #the final function i'd use :) iteration of UTR5_table 
 final_function_table <- function(x){
- purrr::map(x, UTR5_table) 
+ purrr::map(x, UTR5_table)  ### as_tibble(.name_repair = "unique)
 }
 
 output_orfs<-final_function_table(test_orfs) #it works just fine 
 
-######plotting
+
+############################################################################################                                        ##plotting##
 
 #title function used within plotting_5UTR
 title <- function(gene) {
@@ -152,7 +157,7 @@ plotting_5UTR<- function(x, gene) {
   #the actual plotting 
   plotted_UTR <- ggplot(x) +
     geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "Read count", x = "Position") +
     ggtitle(my_title) + 
@@ -160,20 +165,22 @@ plotting_5UTR<- function(x, gene) {
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
     theme_classic()
 }
+##########################################################################################
+                                    ##multiple plots## 
 
-######### multiple plots 
 ###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
+    #still dont know how to name each graph and give a title to the plot overall
 plotting_multiple <- function(x, gene) {
   purrr :: map(x, plotting_5UTR, gene) %>%
-    ggarrange(plotlist = .) %>%
+    ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
     return()
     #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
+
 xxx<-plotting_multiple(output_orfs, test_orfs) 
 #issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
 
 ggsave("multiple", device = "jpg")
-
 
 
 ###### 2 in one
@@ -195,7 +202,6 @@ output_orfs_3AT <-final_function_table(test_orfs)
 
 ###okay i absolutely can't be bothered to work on it anymore, im gonna move to the zooming in bit
 two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
-
 
 two_in_one_plots <- function(sample1, sample2) {
   more_plots <- ggplot(sample1) + 
@@ -219,6 +225,75 @@ more_plots <- ggplot(sample1_tibble1) +
 ggsave("YEEEAH", device = "jpg")
 
 
+##########################################################################################
+                                      ##Zooming in ## 
+#none of the functions have been run yet but that would be the idea
+
+uAUG_efficiency <- function(datatibble) {
+  #finding uAUG and AUG start and end sites for counting 
+  uAUG_start <-finding_uAUG_beginning(datatibble)
+  uAUG_end <- finding_uAUG_ending(uAUG_start)
+  AUG_start <-finding_AUG_beginning(datatibble)
+  AUG_end <- finding_AUG_ending(AUG_start)
+  
+  #summing uAUG and AUG region
+  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
+  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
+  
+  #calculating the efficiency
+  upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
+    return()
+}
+
+##### Function for the upstream codons 
+finding_uAUG_beginning <- function(datatibble) {
+  datatibble %>% 
+    (min(which(Counts > 0)) - 251) %>%   ### how do I make Counts work?? 
+    return()
+}
+
+finding_uAUG_ending <- function(uAUG_beginning) {
+  UPS_beginning + 12 %>%
+    return()
+}
+
+sum_uAUG <- function(datatibble, uAUG_beg, uAUG_end){
+  datatibble %>%
+    filter(between(Pos), lower = uAUG_beg, upper = uAUG_end) %>%
+    group_by(Pos) %>%
+    summarise(Counts=sum(Counts)) %>%
+    return()
+}
+
+
+##### Function for the AUG codons 
+finding_AUG_beginning <- function(datatibble) {
+  datatibble %>% 
+    (min(which(Counts == 0)) - 251) %>%   ### how do I make Counts work?? 
+    return()
+}
+
+finding_AUG_ending <- function(AUG_beginning) {
+  AUG_beginning + 12 %>%
+    return()
+}
+
+sum_AUG <- function(datatibble, AUG_beg, AUG_end){
+  datatibble %>%
+    filter(between(Pos), lower = AUG_beg, upper = AUG_end) %>%
+    group_by(Pos) %>%
+    summarise(Counts=sum(Counts)) %>%
+    return()
+}
+
+##### uAUG efficiency relative to AUG codon 
+upstream_efficiency <- (sum_uAUG/sum_AUG) * 100
+#####
+
+#colSums
+                                        ##Zooming in ##
+##########################################################################################
+                                    ##AUG annotation issue 
 
 # ##working space: for the AUG issue
 # 
