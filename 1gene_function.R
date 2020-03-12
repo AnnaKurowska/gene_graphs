@@ -17,7 +17,7 @@ library(ggpubr)
 library(tibble)
 library(grid)
 library(expss) #for count_col_if
-library(HH) #  for position() I probably won't need any of them 
+#library(HH) #  for position() I probably won't need any of them 
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -36,9 +36,7 @@ startpos <-250
 startlen <- 10
 temporary_length <- 12 #for zooming in bit
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
-gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
-############################################################################################
-                                    ##Functions##
+
 #Function to create a gff table  
 readGFFAsDf <- purrr::compose(
   rtracklayer::readGFFAsGRanges,
@@ -47,6 +45,9 @@ readGFFAsDf <- purrr::compose(
   .dir = "forward" # functions called from left to right
 )
 
+gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
+############################################################################################
+                                    ##Functions##
 #This will be used to create a matrix from hdf5file
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
@@ -56,7 +57,6 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     rhdf5::H5Dread() %>%
     return()
 }
-
 
 # Takes value for start position of 5'UTR for matrix creation (no negative values e.g.: 1)
 Get5UTRstart <- function(gene, x) {
@@ -173,55 +173,60 @@ xxx<-plotting_multiple(output_orfs)
 
 ggsave("multiple", device = "jpg")
 
-###### 2 in one
-
-# for WT_3AT
-
-hd_file <- WT_3AT
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-
-output_orfs_3AT <-final_function_table(test_orfs)
-
-######
-#so now we need to create a plot including both 
-##we need to select each tibble only (can use map again)
-
-
-###okay i absolutely can't be bothered to work on it anymore, im gonna move to the zooming in bit
-two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
-
-two_in_one_plots <- function(sample1, sample2) {
-  more_plots <- ggplot(sample1) + 
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
-    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    theme_classic() 
-}
+# ###### 2 in one
+# 
+# # for WT_3AT
+# 
+# hd_file <- WT_3AT
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# 
+# output_orfs_3AT <-final_function_table(test_orfs)
+# 
+# ######
+# #so now we need to create a plot including both 
+# ##we need to select each tibble only (can use map again)
+# 
+# 
+# ###okay i absolutely can't be bothered to work on it anymore, im gonna move to the zooming in bit
+# two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
+# 
+# two_in_one_plots <- function(sample1, sample2) {
+#   more_plots <- ggplot(sample1) + 
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
+#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#     theme_classic() 
+# }
 
 ##########################################################################################
                                       ##Zooming in ## 
 #none of the functions have been run yet but that would be the idea
 
+# uAUG_efficiency <- function(datatibble) {
+#   #finding uAUG and AUG start and end sites for counting 
+#   uAUG_start <-finding_uAUG_beginning(datatibble)
+#   uAUG_end <- finding_uAUG_ending(uAUG_start)
+#   AUG_start <-finding_AUG_beginning(datatibble)
+#   AUG_end <- finding_AUG_ending(AUG_start)
+#   
+#   #summing uAUG and AUG region
+#   final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
+#   final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
+#   
+#   #calculating the efficiency
+#   upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
+#     return()
+# }
 
-#(which(Counts > 0)) #it still doesnt see it
-
-uAUG_efficiency <- function(datatibble) {
-  #finding uAUG and AUG start and end sites for counting 
-  uAUG_start <-finding_uAUG_beginning(datatibble)
-  uAUG_end <- finding_uAUG_ending(uAUG_start)
-  AUG_start <-finding_AUG_beginning(datatibble)
-  AUG_end <- finding_AUG_ending(AUG_start)
-  
-  #summing uAUG and AUG region
-  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
-  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
-  
-  #calculating the efficiency
-  upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
-    return()
-}
+# test object with 1 gene
+tibble1 <- output_orfs[1]
+# > str(tibble1)
+# List of 1
+# $ :Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
+#   ..$ Pos   : int [1:300] -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
+# ..$ Counts: int [1:300] 0 0 0 0 0 0 0 0 0 0 ...
 
 ##### Function for the upstream codons 
 finding_uAUG_beginning <- function(datatibble) {
@@ -230,11 +235,19 @@ finding_uAUG_beginning <- function(datatibble) {
     min() %>%
     return()
 }
+# to run: 
+finding_uAUG_beginning(tibble1)
+# example run, set to uAUG_beginning:
+uAUG_beginning <- finding_uAUG_beginning(tibble1)
 
 finding_uAUG_ending <- function(uAUG_start) {
   uAUG_start + temporary_length %>%
     return()
 }
+# to run: 
+finding_uAUG_ending(uAUG_beginning)
+# example run, set to uAUG_ending:
+uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
 
 sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
   datatibble %>%
@@ -242,6 +255,10 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
     summarise(sum_read_counts_uAUG=sum(Counts)) %>%
     return()
 }
+# to run: 
+sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+# example run set to sum_uAUG_result
+sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 
 ##### Function for the AUG codons 
 finding_AUG_beginning <- function(datatibble) {
