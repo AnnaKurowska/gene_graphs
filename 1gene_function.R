@@ -34,6 +34,7 @@ test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
 nnt_gene<- 50
 startpos <-250
 startlen <- 10
+temporary_length <- 12 #for zooming in bit
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
 gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
 ############################################################################################
@@ -203,14 +204,8 @@ two_in_one_plots <- function(sample1, sample2) {
                                       ##Zooming in ## 
 #none of the functions have been run yet but that would be the idea
 
-finding_uAUG_beginning <- function(datatibble) {
-  datatibble %>% 
-    (min(which(Counts > 0)) - 251) %>%   ### how do I make Counts work?? 
-    return()
-}
 
-tibble1 %>% 
-  (min(which(Counts > 0)) - 251) #it still doesnt see it
+#(which(Counts > 0)) #it still doesnt see it
 
 uAUG_efficiency <- function(datatibble) {
   #finding uAUG and AUG start and end sites for counting 
@@ -231,46 +226,45 @@ uAUG_efficiency <- function(datatibble) {
 ##### Function for the upstream codons 
 finding_uAUG_beginning <- function(datatibble) {
   datatibble %>% 
-    (min(which(Counts > 0)) - 251) %>%   ### how do I make Counts work?? 
+    filter(Counts > 0) %>%
+    min() %>%
     return()
 }
 
-finding_uAUG_ending <- function(uAUG_beginning) {
-  UPS_beginning + 12 %>%
+finding_uAUG_ending <- function(uAUG_start) {
+  uAUG_start + temporary_length %>%
     return()
 }
 
-sum_uAUG <- function(datatibble, uAUG_beg, uAUG_end){
+sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
   datatibble %>%
-    filter(between(Pos), lower = uAUG_beg, upper = uAUG_end) %>%
-    group_by(Pos) %>%
-    summarise(Counts=sum(Counts)) %>%
+    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
     return()
 }
-
 
 ##### Function for the AUG codons 
 finding_AUG_beginning <- function(datatibble) {
   datatibble %>% 
-    (min(which(Counts == 0)) - 251) %>%   ### how do I make Counts work?? 
+    filter(Pos == 0) %>%
+    min() %>%
     return()
 }
 
-finding_AUG_ending <- function(AUG_beginning) {
-  AUG_beginning + 12 %>%
+finding_AUG_ending <- function(AUG_start) {
+  AUG_start + temporary_length %>%
     return()
 }
 
-sum_AUG <- function(datatibble, AUG_beg, AUG_end){
+sum_AUG <- function(datatibble, AUG_start, AUG_end){
   datatibble %>%
-    filter(between(Pos), lower = AUG_beg, upper = AUG_end) %>%
-    group_by(Pos) %>%
-    summarise(Counts=sum(Counts)) %>%
+    filter(Pos >= AUG_start, Pos <= AUG_end) %>%
+  summarise(sum_read_counts_AUG=sum(Counts)) %>%
     return()
 }
 
 ##### uAUG efficiency relative to AUG codon 
-upstream_efficiency <- (sum_uAUG/sum_AUG) * 100
+upstream_efficiency <- ((sum_uAUG/sum_AUG) * 100)
 #####
 
 
