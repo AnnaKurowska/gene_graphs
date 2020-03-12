@@ -16,13 +16,9 @@ library(ggplot2)
 library(ggpubr)
 library(tibble)
 library(grid)
-<<<<<<< HEAD
+
 # library(expss) #for count_col_if
 # library(HH) #  for position() I probably won't need any of them 
-=======
-library(expss) #for count_col_if
-#library(HH) #  for position() I probably won't need any of them 
->>>>>>> cbd6596869e1efddad9e94e5b045c917ed58e583
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -207,31 +203,55 @@ ggsave("multiple", device = "jpg")
 
 ##########################################################################################
                                       ##Zooming in ## 
-#none of the functions have been run yet but that would be the idea
-
-# uAUG_efficiency <- function(datatibble) {
-#   #finding uAUG and AUG start and end sites for counting 
-#   uAUG_start <-finding_uAUG_beginning(datatibble)
-#   uAUG_end <- finding_uAUG_ending(uAUG_start)
-#   AUG_start <-finding_AUG_beginning(datatibble)
-#   AUG_end <- finding_AUG_ending(AUG_start)
-#   
-#   #summing uAUG and AUG region
-#   final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
-#   final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
-#   
-#   #calculating the efficiency
-#   upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
-#     return()
-# }
 
 # test object with 1 gene
-tibble1 <- output_orfs[1]
+tibble1 <- output_orfs[[1]]
 # > str(tibble1)
-# List of 1
-# $ :Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
-#   ..$ Pos   : int [1:300] -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
-# ..$ Counts: int [1:300] 0 0 0 0 0 0 0 0 0 0 ...
+# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
+#   $ Pos   : int  -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
+# $ Counts: int  0 0 0 0 0 0 0 0 0 0 ...
+
+
+#test run:
+uAUG_efficiency(tibble1)
+# example run, for the final function:
+efficiency_final_full_result <- uAUG_efficiency(tibble1)
+"#The efficiency of upstream translation initiation is  0.119617224880383 %"
+
+#test run for multiple genes:
+map(output_orfs, uAUG_efficiency)
+# [[1]]
+# [1] "The efficiency of upstream translation initiation is  0.119617224880383 %"
+# 
+# [[2]]
+# [1] "The efficiency of upstream translation initiation is  Inf %"
+# 
+# [[3]]
+# [1] "The efficiency of upstream translation initiation is  266.666666666667 %"
+# 
+# [[4]]
+# [1] "The efficiency of upstream translation initiation is  113.333333333333 %"
+# 
+# [[5]]
+# [1] "The efficiency of upstream translation initiation is  Inf %"
+###needs thresholds, [1] encountered one single read count and it started counting from it
+###needs a solution for Inf as well (I think it's division by 0)
+
+uAUG_efficiency <- function(datatibble) {
+  #finding uAUG and AUG start and end sites for counting
+  uAUG_start <-finding_uAUG_beginning(datatibble)
+  uAUG_end <- finding_uAUG_ending(uAUG_start)
+  AUG_start <-finding_AUG_beginning(datatibble)
+  AUG_end <- finding_AUG_ending(AUG_start)
+
+  #summing uAUG and AUG region
+  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
+  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
+
+  #calculating the efficiency
+  upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
+    return()
+}
 
 ##### Function for the upstream codons 
 finding_uAUG_beginning <- function(datatibble) {
@@ -240,6 +260,7 @@ finding_uAUG_beginning <- function(datatibble) {
     min() %>%
     return()
 }
+
 # to run: 
 finding_uAUG_beginning(tibble1)
 # example run, set to uAUG_beginning:
@@ -270,13 +291,29 @@ finding_AUG_beginning <- function(datatibble) {
   datatibble %>% 
     select(Pos) %>%
     filter(Pos == 0) %>%
+    as.integer() %>%
     return()
 }
 
+# to run: 
+finding_AUG_beginning(tibble1)
+# example run, set to AUG_beginning:
+AUG_beginning <- finding_AUG_beginning(tibble1)
+## we don't want a tibble, it stops it from working 
+# A tibble: 1 x 1
+# Pos
+# <int>
+#   1     0
+
 finding_AUG_ending <- function(AUG_start) {
-  AUG_start + temporary_length %>%
+  AUG_start + temporary_length %>% 
     return()
 }
+
+# to run: 
+finding_AUG_ending(AUG_beginning)
+# example run, set to AUG_ending:
+AUG_ending <- finding_AUG_ending(AUG_beginning)
 
 sum_AUG <- function(datatibble, AUG_start, AUG_end){
   datatibble %>%
@@ -284,9 +321,27 @@ sum_AUG <- function(datatibble, AUG_start, AUG_end){
   summarise(sum_read_counts_AUG=sum(Counts)) %>%
     return()
 }
+# to run: 
+sum_AUG(tibble1, AUG_beginning, AUG_ending)
+# example run, set to sum_AUG:
+sum_AUG_result <- sum_AUG(tibble1, AUG_beginning, AUG_ending)
+# # A tibble: 1 x 1
+# sum_read_counts_AUG
+# <int>
+#   1                 836
 
 ##### uAUG efficiency relative to AUG codon 
-upstream_efficiency <- ((sum_uAUG/sum_AUG) * 100)
+upstream_efficiency <- function(sum_uAUG, sum_AUG) {
+  efficiency <- ((sum_uAUG/sum_AUG) * 100) 
+    paste0("The efficiency of upstream translation initiation is  ", efficiency, " %" ) %>%
+      return()
+} 
+#to run
+upstream_efficiency(sum_uAUG_result,sum_AUG_result)
+# example run, set to upstream_efficiency:
+efficiency_value <- upstream_efficiency(sum_uAUG_result,sum_AUG_result)
+
+
 #####
 
 
