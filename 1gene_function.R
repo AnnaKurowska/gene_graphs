@@ -17,7 +17,7 @@ library(ggpubr)
 library(tibble)
 library(grid)
 library(expss) #for count_col_if
-library(HH) #  for position()
+library(HH) #  for position() I probably won't need any of them 
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -145,22 +145,21 @@ output_orfs<-final_function_table(test_orfs) #it works just fine
 ############################################################################################                                        ##plotting##
 
 #title function used within plotting_5UTR
-title <- function(gene) {
+title <- function(gene) {  ##call it differently 
   paste("Ribosome footprint density of ", gene , sep= "")
 }
 
 #main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
-plotting_5UTR<- function(x, gene) {
-  my_title <-title(gene)  #it wooooooorks!
+plotting_5UTR<- function(input_data) {
   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
   
   #the actual plotting 
-  plotted_UTR <- ggplot(x) +
+  plotted_UTR <- ggplot(input_data) +
     geom_density(aes(x=Pos, y=Counts), stat="identity") +
     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "Read count", x = "Position") +
-    ggtitle(my_title) + 
+    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) + 
     # coord_cartesian(clip = "off") + 
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
     theme_classic()
@@ -170,14 +169,14 @@ plotting_5UTR<- function(x, gene) {
 
 ###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
     #still dont know how to name each graph and give a title to the plot overall
-plotting_multiple <- function(x, gene) {
-  purrr :: map(x, plotting_5UTR, gene) %>%
+plotting_multiple <- function(input_data) {
+  purrr :: map(input_data, plotting_5UTR) %>%
     ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
     return()
     #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
 
-xxx<-plotting_multiple(output_orfs, test_orfs) 
+xxx<-plotting_multiple(output_orfs) 
 #issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
 
 ggsave("multiple", device = "jpg")
@@ -290,12 +289,20 @@ sum_AUG <- function(datatibble, AUG_beg, AUG_end){
 upstream_efficiency <- (sum_uAUG/sum_AUG) * 100
 #####
 
-#colSums
-                                        ##Zooming in ##
-##########################################################################################
-                                    ##AUG annotation issue 
 
-# ##working space: for the AUG issue
+###Problems (bc there are/will be plenty):
+  #How do i do it for each list from the list? I've got a list of 5 list 
+  #I can't indicate specific columns e.g. Pos= datatibble$Pos. 
+  #how much of flanking region around the uAUG and AUG should I include
+  #I'm calculating the efficiency but what if the AUG codon has no initiation, I will have     an error in calculations, 
+
+
+#colSums
+                                      ##Zooming in ##
+##########################################################################################
+                                  ##AUG annotation issue 
+
+# ##working space: for the AUG annotation issue 
 # 
 # UTR5_plot_test <- function(gene) {
 #   lapply(gene,
