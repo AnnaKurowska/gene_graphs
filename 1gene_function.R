@@ -26,7 +26,7 @@ WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_CHX
+hd_file <- WT_none
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
@@ -38,6 +38,13 @@ orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
 gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
 ############################################################################################
                                     ##Functions##
+#Function to create a gff table  
+readGFFAsDf <- purrr::compose(
+  rtracklayer::readGFFAsGRanges,
+  data.frame, 
+  as_tibble,
+  .dir = "forward" # functions called from left to right
+)
 
 #This will be used to create a matrix from hdf5file
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
@@ -49,13 +56,6 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     return()
 }
 
-#Function to create a gff table  
-readGFFAsDf <- purrr::compose(
-  rtracklayer::readGFFAsGRanges,
-  data.frame, 
-  as_tibble,
-  .dir = "forward" # functions called from left to right
-)
 
 # Takes value for start position of 5'UTR for matrix creation (no negative values e.g.: 1)
 Get5UTRstart <- function(gene, x) {
@@ -89,7 +89,7 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x, nnt_gene) {
   return(data_mat_5start)
   #return(data_mat_5start, posn5start, posn5end)
 }
-#Currently replaced by TidyDataMatrix 
+
 # GetPosnCountOutput <- function(x){
 #   output_thing <- x %>% 
 #     gather(-read_length, key="Position", value = "Counts") %>%
@@ -112,7 +112,7 @@ TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
     group_by(Pos) %>%
     summarise(Counts=sum(Counts))
-
+}
 
 #final function from raw data processing to data visualization
 UTR5_table <- function(gene) {
@@ -129,10 +129,6 @@ UTR5_table <- function(gene) {
   return()
 }
 
-####trying to change the name within 
-a<-UTR5_table(test_orfs[1])
-names(a) <-paste("Gene name", test_orfs[1], sep = "") #this only names one 1 col 
-
 
 #the final function i'd use :) iteration of UTR5_table 
 final_function_table <- function(x){
@@ -143,11 +139,6 @@ output_orfs<-final_function_table(test_orfs) #it works just fine
 
 
 ############################################################################################                                        ##plotting##
-
-#title function used within plotting_5UTR
-title <- function(gene) {  ##call it differently 
-  paste("Ribosome footprint density of ", gene , sep= "")
-}
 
 #main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
 plotting_5UTR<- function(input_data) {
@@ -164,7 +155,7 @@ plotting_5UTR<- function(input_data) {
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
     theme_classic()
 }
-##########################################################################################
+
                                     ##multiple plots## 
 
 ###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
@@ -181,11 +172,7 @@ xxx<-plotting_multiple(output_orfs)
 
 ggsave("multiple", device = "jpg")
 
-
 ###### 2 in one
-
-#for WT_none
-output_orfs<-final_function_table(test_orfs)
 
 # for WT_3AT
 
@@ -212,21 +199,18 @@ two_in_one_plots <- function(sample1, sample2) {
     theme_classic() 
 }
 
-more_plots <- ggplot(sample1_tibble1) + 
-  geom_density(aes(x=Pos, y=Counts), stat="identity") +
-  geom_density(data = sample2_tibble1, aes(x=Pos, y= Counts), stat="identity", color = "red") +
-  scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0,0)) +
-  labs(y= "Read count", x = "Position") +
-  theme_classic() 
-  #gotta create the legend 
-
-ggsave("YEEEAH", device = "jpg")
-
-
 ##########################################################################################
                                       ##Zooming in ## 
 #none of the functions have been run yet but that would be the idea
+
+finding_uAUG_beginning <- function(datatibble) {
+  datatibble %>% 
+    (min(which(Counts > 0)) - 251) %>%   ### how do I make Counts work?? 
+    return()
+}
+
+tibble1 %>% 
+  (min(which(Counts > 0)) - 251) #it still doesnt see it
 
 uAUG_efficiency <- function(datatibble) {
   #finding uAUG and AUG start and end sites for counting 
@@ -294,7 +278,7 @@ upstream_efficiency <- (sum_uAUG/sum_AUG) * 100
   #How do i do it for each list from the list? I've got a list of 5 list 
   #I can't indicate specific columns e.g. Pos= datatibble$Pos. 
   #how much of flanking region around the uAUG and AUG should I include
-  #I'm calculating the efficiency but what if the AUG codon has no initiation, I will have     an error in calculations, 
+  #I'm calculating the efficiency but what if the AUG codon has no initiation, I will have     an error in calculations
 
 
 #colSums
