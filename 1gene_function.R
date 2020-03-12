@@ -16,8 +16,8 @@ library(ggplot2)
 library(ggpubr)
 library(tibble)
 library(grid)
-library(expss) #for count_col_if
-library(HH) #  for position() I probably won't need any of them 
+# library(expss) #for count_col_if
+# library(HH) #  for position() I probably won't need any of them 
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -246,8 +246,8 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
 ##### Function for the AUG codons 
 finding_AUG_beginning <- function(datatibble) {
   datatibble %>% 
+    select(Pos) %>%
     filter(Pos == 0) %>%
-    min() %>%
     return()
 }
 
