@@ -223,6 +223,7 @@ finding_uAUG_beginning <- function(datatibble) {
     min() %>%
     return()
 }
+###i was playing with tibble5 (instead of tbl1) bc it has much lower count frequency, i encountered the following issue: 
 #for finding_uAUG_beginning(tibble5) if filter(Counts > 4) bc the max count value of tbl5 is 4 so that's a good question how i can tackle that. 
 # Error in FUN(X[[i]], ...) : 
 #   only defined on a data frame with all numeric variables 
