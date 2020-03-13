@@ -212,11 +212,69 @@ tibble1 <- output_orfs[[1]]
 # Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
 #   $ Pos   : int  -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
 # $ Counts: int  0 0 0 0 0 0 0 0 0 0 ...
-tibble5 <- output_orfs[[5]]
 
-#test run:
-uAUG_efficiency(tibble5)
+# tibble5 <- output_orfs[[5]] i've created more tables to play with 
+
+
+##### Function for the upstream codons 
+finding_uAUG_beginning <- function(datatibble) {
+  datatibble %>% 
+    dplyr :: filter(Counts > 0) %>%
+    min() %>%
+    return()
+}
+#for finding_uAUG_beginning(tibble5) if filter(Counts > 4) bc the max count value of tbl5 is 4 so that's a good question how i can tackle that. 
+# Error in FUN(X[[i]], ...) : 
+#   only defined on a data frame with all numeric variables 
+
+# to run: 
+finding_uAUG_beginning(tibble1)
+# example run, set to uAUG_beginning:
+uAUG_beginning <- finding_uAUG_beginning(tibble1)
+
+finding_uAUG_ending <- function(uAUG_start) {-
+  uAUG_start + temporary_length %>%
+    return()
+}
+
+# to run: 
+finding_uAUG_ending(uAUG_beginning)
+# example run, set to uAUG_ending:
+uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
+
+sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
+  datatibble %>%
+    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
+    return()
+}
+
+# to run: 
+sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+# example run set to sum_uAUG_result
+sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+
+##final function 
+
+uAUG_efficiency <- function(datatibble) {
+  #finding uAUG and AUG start and end sites for counting
+  uAUG_start <-finding_uAUG_beginning(datatibble)
+  uAUG_end <- finding_uAUG_ending(uAUG_start)
+  AUG_start <-finding_AUG_beginning(datatibble)
+  AUG_end <- finding_AUG_ending(AUG_start)
+  
+  #summing uAUG and AUG region
+  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
+  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
+  
+  #calculating the efficiency
+  upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
+    return()
+}
+
+uAUG_efficiency(tibble1)
 # example run, for the final function:
+
 efficiency_final_full_result <- uAUG_efficiency(tibble1)
 "#The efficiency of upstream translation initiation is  0.119617224880383 %"
 
@@ -239,68 +297,13 @@ map(output_orfs, uAUG_efficiency)
 ###needs thresholds, [1] encountered one single read count and it started counting from it
 ###needs a solution for Inf as well (I think it's division by 0)
 
-uAUG_efficiency <- function(datatibble) {
-  #finding uAUG and AUG start and end sites for counting
-  uAUG_start <-finding_uAUG_beginning(datatibble)
-  uAUG_end <- finding_uAUG_ending(uAUG_start)
-  AUG_start <-finding_AUG_beginning(datatibble)
-  AUG_end <- finding_AUG_ending(AUG_start)
-
-  #summing uAUG and AUG region
-  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
-  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
-
-  #calculating the efficiency
-  upstream_efficiency(final_sum_uAUG, final_sum_AUG) %>%
-    return()
-}
-
-##### Function for the upstream codons 
-finding_uAUG_beginning <- function(datatibble) {
-  datatibble %>% 
-    dplyr :: filter(Counts > 0) %>%
-    min() %>%
-    return()
-}
-
-#for finding_uAUG_beginning(tibble5) if filter(Counts > 4) bc the max count value of tbl5 is 4 so that's a good question how i can tackle that. 
-# Error in FUN(X[[i]], ...) : 
-#   only defined on a data frame with all numeric variables 
-
-finding_uAUG_beginning(tibble1) #works for a single value
-map(output_orfs, finding_uAUG_beginning)# doesn't work if it's larger than 4
-##deciphering:
-
-
-# to run: 
-finding_uAUG_beginning(tibble1)
-# example run, set to uAUG_beginning:
-uAUG_beginning <- finding_uAUG_beginning(tibble1)
-
-finding_uAUG_ending <- function(uAUG_start) {-
-  uAUG_start + temporary_length %>%
-    return()
-}
-# to run: 
-finding_uAUG_ending(uAUG_beginning)
-# example run, set to uAUG_ending:
-uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
-
-sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
-  datatibble %>%
-    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
-    return()
-}
-# to run: 
-sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
-# example run set to sum_uAUG_result
-sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 
 ############################################################################################
                                  ##Working space for tibble5##
 
-##### Function for the AUG codons 
+##idea: find different positions at which read count > 0, calculate the efficiency of that region relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts > 0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with larger thresholds
+
+##### Function for the AUG start codons needs to be changed
 finding_AUG_beginning <- function(datatibble) {
   datatibble %>% 
     dplyr::select(Pos) %>%
@@ -310,25 +313,6 @@ finding_AUG_beginning <- function(datatibble) {
 
 #so i'm first calculating the efficiency of AUG initiation 
 #start of the search, i could be just looking at a specific region flanking the AUG site, maybe it could be maybe 24 NTs?
-
-# to run: 
-finding_AUG_beginning(tibble1)
-# example run, set to AUG_beginning:
-AUG_beginning <- finding_AUG_beginning(tibble5)
-## we don't want a tibble, it stops it from working 
-# A tibble: 1 x 1
-# Pos
-# <int>
-#   1     0
-
-# AUG_start_tibble5 and AUG_end_tibble5 and AUG_sum_tibble5:
-AUG_sum_tibble5 <- sum_AUG(tibble5, AUG_start_tibble5, AUG_end_tibble5)
-# A tibble: 1 x 1
-# sum_read_counts_AUG
-# <int>
-#   1                   
-
-##idea: find different positions at which read count > 0, calculate the efficiency of that region relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts>0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with a larger threshold 
 
 #step: find each counts > 0 and calculate the % for it 
 
