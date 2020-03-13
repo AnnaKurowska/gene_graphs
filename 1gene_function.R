@@ -23,12 +23,12 @@ library(grid)
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
-WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+#WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+#WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_3AT
+hd_file <- WT_none
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
@@ -145,36 +145,36 @@ output_orfs<-final_function_table(test_orfs) #it works just fine
 ############################################################################################                                        ##plotting##
 
 #main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
-plotting_5UTR<- function(input_data) {
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
-  #the actual plotting 
-  plotted_UTR <- ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) + 
-    # coord_cartesian(clip = "off") + 
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
-    theme_classic()
-}
-
-                                    ##multiple plots## 
-
-###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
-    #still dont know how to name each graph and give a title to the plot overall
-plotting_multiple <- function(input_data) {
-  purrr :: map(input_data, plotting_5UTR) %>%
-    ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
-    return()
-    #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
-}
-
-xxx<-plotting_multiple(output_orfs) 
-#issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
-
-ggsave("multiple", device = "jpg")
+# plotting_5UTR<- function(input_data) {
+#   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+#   
+#   #the actual plotting 
+#   plotted_UTR <- ggplot(input_data) +
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#     ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) + 
+#     # coord_cartesian(clip = "off") + 
+#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) + 
+#     theme_classic()
+# }
+# 
+#                                     ##multiple plots## 
+# 
+# ###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
+#     #still dont know how to name each graph and give a title to the plot overall
+# plotting_multiple <- function(input_data) {
+#   purrr :: map(input_data, plotting_5UTR) %>%
+#     ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
+#     return()
+#     #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
+# }
+# 
+# xxx<-plotting_multiple(output_orfs) 
+# #issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
+# 
+# ggsave("multiple", device = "jpg")
 
 # ###### 2 in one
 # 
@@ -207,7 +207,7 @@ ggsave("multiple", device = "jpg")
                                       ##Zooming in ## 
 
 # test object with 1 gene
-tibble1 <- output_orfs[[1]]
+#tibble1 <- output_orfs[[1]]
 # > str(tibble1)
 # Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
 #   $ Pos   : int  -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
@@ -229,9 +229,9 @@ finding_uAUG_beginning <- function(datatibble) {
 #   only defined on a data frame with all numeric variables 
 
 # to run: 
-finding_uAUG_beginning(tibble1)
+#finding_uAUG_beginning(tibble1)
 # example run, set to uAUG_beginning:
-uAUG_beginning <- finding_uAUG_beginning(tibble1)
+#uAUG_beginning <- finding_uAUG_beginning(tibble1)
 
 finding_uAUG_ending <- function(uAUG_start) {-
   uAUG_start + temporary_length %>%
@@ -239,9 +239,9 @@ finding_uAUG_ending <- function(uAUG_start) {-
 }
 
 # to run: 
-finding_uAUG_ending(uAUG_beginning)
+#finding_uAUG_ending(uAUG_beginning)
 # example run, set to uAUG_ending:
-uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
+#uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
 
 sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
   datatibble %>%
@@ -251,9 +251,9 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
 }
 
 # to run: 
-sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+#sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 # example run set to sum_uAUG_result
-sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+#sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 
 
 ####AUG
@@ -265,9 +265,9 @@ finding_AUG_beginning <- function(datatibble) {
 }
 
 # to run: 
-finding_AUG_beginning(tibble1)
+#finding_AUG_beginning(tibble1)
 # example run, set to uAUG_beginning:
-AUG_beginning <- finding_AUG_beginning(tibble1)
+#AUG_beginning <- finding_AUG_beginning(tibble1)
 
 finding_AUG_ending <- function(AUG_start) {-
     AUG_start + temporary_length %>%
@@ -275,9 +275,9 @@ finding_AUG_ending <- function(AUG_start) {-
 }
 
 # to run: 
-finding_AUG_ending(AUG_beginning)
+#finding_AUG_ending(AUG_beginning)
 # example run, set to uAUG_ending:
-AUG_ending <- finding_AUG_ending(AUG_beginning)
+#AUG_ending <- finding_AUG_ending(AUG_beginning)
 
 sum_AUG <- function(datatibble, AUG_start, AUG_end){
   datatibble %>%
@@ -286,10 +286,17 @@ sum_AUG <- function(datatibble, AUG_start, AUG_end){
     return()
 }
 # to run: 
-sum_AUG(tibble1, AUG_beginning, AUG_ending )
+#sum_AUG(tibble1, AUG_beginning, AUG_ending )
 # example run, set to uAUG_ending:
-sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
+#sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
 
+##efficiency
+upstream_efficiency <- function(uAUG_sum_result, AUG_sum_result) {
+  (uAUG_sum_result/AUG_sum_result *100) %>% 
+    return()
+}
+  
+#upstream_efficiency(sum_uAUG_result/sum_AUG_result)
 
 ##final function 
 
@@ -309,10 +316,10 @@ uAUG_efficiency <- function(datatibble) {
     return()
 }
 
-uAUG_efficiency(tibble1)
+#uAUG_efficiency(tibble1)
 # example run, for the final function:
 
-efficiency_final_full_result <- uAUG_efficiency(tibble1)
+#efficiency_final_full_result <- uAUG_efficiency(tibble1)
 "#The efficiency of upstream translation initiation is  0.119617224880383 %"
 
 #test run for multiple genes:
@@ -378,50 +385,6 @@ map(AUG_beginning_tibble5,sum_uAUG )
 
 #then calculate the percentage relative to AUG 
 
-
-############################################################################################
-
-
-finding_AUG_ending <- function(AUG_start) {
-  AUG_start + temporary_length %>% 
-    return()
-}
-
-# to run: 
-finding_AUG_ending(AUG_beginning)
-# example run, set to AUG_ending:
-AUG_ending <- finding_AUG_ending(AUG_beginning)
-
-sum_AUG <- function(datatibble, AUG_start, AUG_end){
-  datatibble %>%
-    filter(Pos >= AUG_start, Pos <= AUG_end) %>%
-  summarise(sum_read_counts_AUG=sum(Counts)) %>%
-    return()
-}
-# to run: 
-sum_AUG(tibble1, AUG_beginning, AUG_ending)
-# example run, set to sum_AUG:
-sum_AUG_result <- sum_AUG(tibble1, AUG_beginning, AUG_ending)
-# # A tibble: 1 x 1
-# sum_read_counts_AUG
-# <int>
-#   1                 836
-
-##### uAUG efficiency relative to AUG codon 
-upstream_efficiency <- function(sum_uAUG, sum_AUG) {
-  efficiency <- ((sum_uAUG/sum_AUG) * 100) 
-    paste0("The efficiency of upstream translation initiation is  ", efficiency, " %" ) %>%
-      return()
-} 
-#to run
-upstream_efficiency(sum_uAUG_result,sum_AUG_result)
-# example run, set to upstream_efficiency:
-efficiency_value <- upstream_efficiency(sum_uAUG_result,sum_AUG_result)
-
-##
-#threshold
-
-###so this may actually be very different, i may not want to find a single value, but instead 1) use a threshold abd 2) 
 
                                       ##Zooming in ##
 ##########################################################################################
