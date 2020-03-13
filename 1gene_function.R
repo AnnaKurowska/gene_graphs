@@ -16,6 +16,7 @@ library(ggplot2)
 library(ggpubr)
 library(tibble)
 library(grid)
+ #for the threshold function
 
 # library(expss) #for count_col_if
 # library(HH) #  for position() I probably won't need any of them 
@@ -27,7 +28,7 @@ WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_none
+hd_file <- WT_3AT
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
@@ -36,6 +37,7 @@ nnt_gene<- 50
 startpos <-250
 startlen <- 10
 temporary_length <- 12 #for zooming in bit
+min_read_count <- 10
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
 
 #Function to create a gff table  
@@ -210,10 +212,10 @@ tibble1 <- output_orfs[[1]]
 # Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
 #   $ Pos   : int  -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
 # $ Counts: int  0 0 0 0 0 0 0 0 0 0 ...
-
+tibble5 <- output_orfs[[5]]
 
 #test run:
-uAUG_efficiency(tibble1)
+uAUG_efficiency(tibble5)
 # example run, for the final function:
 efficiency_final_full_result <- uAUG_efficiency(tibble1)
 "#The efficiency of upstream translation initiation is  0.119617224880383 %"
@@ -256,17 +258,26 @@ uAUG_efficiency <- function(datatibble) {
 ##### Function for the upstream codons 
 finding_uAUG_beginning <- function(datatibble) {
   datatibble %>% 
-    filter(Counts > 0) %>%
+    dplyr :: filter(Counts > 0) %>%
     min() %>%
     return()
 }
+
+#for finding_uAUG_beginning(tibble5) if filter(Counts > 4) bc the max count value of tbl5 is 4 so that's a good question how i can tackle that. 
+# Error in FUN(X[[i]], ...) : 
+#   only defined on a data frame with all numeric variables 
+
+finding_uAUG_beginning(tibble1) #works for a single value
+map(output_orfs, finding_uAUG_beginning)# doesn't work if it's larger than 4
+##deciphering:
+
 
 # to run: 
 finding_uAUG_beginning(tibble1)
 # example run, set to uAUG_beginning:
 uAUG_beginning <- finding_uAUG_beginning(tibble1)
 
-finding_uAUG_ending <- function(uAUG_start) {
+finding_uAUG_ending <- function(uAUG_start) {-
   uAUG_start + temporary_length %>%
     return()
 }
@@ -286,24 +297,68 @@ sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 # example run set to sum_uAUG_result
 sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 
+############################################################################################
+                                 ##Working space for tibble5##
+
 ##### Function for the AUG codons 
 finding_AUG_beginning <- function(datatibble) {
   datatibble %>% 
-    select(Pos) %>%
-    filter(Pos == 0) %>%
-    as.integer() %>%
-    return()
+    dplyr::select(Pos) %>%
+    filter(Pos == -6) %>%  #I changed the value to 6 so altogether now it's 12nt region
+    pull 
 }
+
+#so i'm first calculating the efficiency of AUG initiation 
+#start of the search, i could be just looking at a specific region flanking the AUG site, maybe it could be maybe 24 NTs?
 
 # to run: 
 finding_AUG_beginning(tibble1)
 # example run, set to AUG_beginning:
-AUG_beginning <- finding_AUG_beginning(tibble1)
+AUG_beginning <- finding_AUG_beginning(tibble5)
 ## we don't want a tibble, it stops it from working 
 # A tibble: 1 x 1
 # Pos
 # <int>
 #   1     0
+
+# AUG_start_tibble5 and AUG_end_tibble5 and AUG_sum_tibble5:
+AUG_sum_tibble5 <- sum_AUG(tibble5, AUG_start_tibble5, AUG_end_tibble5)
+# A tibble: 1 x 1
+# sum_read_counts_AUG
+# <int>
+#   1                   
+
+##idea: find different positions at which read count > 0, calculate the efficiency of that site relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts>0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with a larger threshold 
+
+#step: find each counts > 0 and calculate the % for it 
+
+#you're getting a table with only counts > 0 values,
+finding_uAUG_beginning2 <- function(datatibble) {
+  datatibble %>% 
+    dplyr :: filter(Counts > 0) %>%
+    pull(Pos)
+}
+
+#find beginning for each count > 0 site
+AUG_beginning_tibble5 <- finding_uAUG_beginning2(tibble5)
+# > AUG_beginning_tibble5
+#[1] -31 -25 -22 -17 -16 -14 -13 -10  -8   0  24  27  32  41  42  49
+
+#find end for each count > 0 site
+AUG_end_tibble5<-finding_uAUG_ending(AUG_beginning_tibble5)
+#[1] -19 -13 -10  -5  -4  -2  -1   2   4  12  36  39  44  53  54  61
+
+
+
+#calculate the sum for each counts>
+map(AUG_beginning_tibble5,sum_uAUG )
+
+
+#then calculate the percentage relative to AUG 
+
+
+############################################################################################
+
 
 finding_AUG_ending <- function(AUG_start) {
   AUG_start + temporary_length %>% 
@@ -341,18 +396,11 @@ upstream_efficiency(sum_uAUG_result,sum_AUG_result)
 # example run, set to upstream_efficiency:
 efficiency_value <- upstream_efficiency(sum_uAUG_result,sum_AUG_result)
 
+##
+#threshold
 
-#####
+###so this may actually be very different, i may not want to find a single value, but instead 1) use a threshold abd 2) 
 
-
-###Problems (bc there are/will be plenty):
-  #How do i do it for each list from the list? I've got a list of 5 list 
-  #I can't indicate specific columns e.g. Pos= datatibble$Pos. 
-  #how much of flanking region around the uAUG and AUG should I include
-  #I'm calculating the efficiency but what if the AUG codon has no initiation, I will have     an error in calculations
-
-
-#colSums
                                       ##Zooming in ##
 ##########################################################################################
                                   ##AUG annotation issue 
