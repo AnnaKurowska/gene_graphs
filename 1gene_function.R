@@ -328,7 +328,7 @@ AUG_sum_tibble5 <- sum_AUG(tibble5, AUG_start_tibble5, AUG_end_tibble5)
 # <int>
 #   1                   
 
-##idea: find different positions at which read count > 0, calculate the efficiency of that site relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts>0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with a larger threshold 
+##idea: find different positions at which read count > 0, calculate the efficiency of that region relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts>0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with a larger threshold 
 
 #step: find each counts > 0 and calculate the % for it 
 
