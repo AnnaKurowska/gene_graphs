@@ -255,6 +255,42 @@ sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 # example run set to sum_uAUG_result
 sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
 
+
+####AUG
+finding_AUG_beginning <- function(datatibble) {
+  datatibble %>% 
+    dplyr::select(Pos) %>%
+    filter(Pos == 0) %>%  #I changed the value to 6 so altogether now it's 12nt region
+    pull 
+}
+
+# to run: 
+finding_AUG_beginning(tibble1)
+# example run, set to uAUG_beginning:
+AUG_beginning <- finding_AUG_beginning(tibble1)
+
+finding_AUG_ending <- function(AUG_start) {-
+    AUG_start + temporary_length %>%
+    return()
+}
+
+# to run: 
+finding_AUG_ending(AUG_beginning)
+# example run, set to uAUG_ending:
+AUG_ending <- finding_AUG_ending(AUG_beginning)
+
+sum_AUG <- function(datatibble, AUG_start, AUG_end){
+  datatibble %>%
+    filter(Pos >= AUG_start, Pos <= AUG_end) %>%
+    summarise(sum_read_counts_AUG=sum(Counts)) %>%
+    return()
+}
+# to run: 
+sum_AUG(tibble1, AUG_beginning, AUG_ending )
+# example run, set to uAUG_ending:
+sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
+
+
 ##final function 
 
 uAUG_efficiency <- function(datatibble) {
