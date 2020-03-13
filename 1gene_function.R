@@ -349,6 +349,7 @@ AUG_end_tibble5<-finding_uAUG_ending(AUG_beginning_tibble5)
 #[1] -19 -13 -10  -5  -4  -2  -1   2   4  12  36  39  44  53  54  61
 
 
+map(tibble5,sum_uAUG, AUG_beginning_tibble5, AUG_end_tibble5)
 
 #calculate the sum for each counts>
 map(AUG_beginning_tibble5,sum_uAUG )
