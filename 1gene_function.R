@@ -354,25 +354,24 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
   #   left:  integer for starting position, frame 0
   #   right: integer for ending position
   #   snapdisp: integer any additional displacement in the snapping
-  RcppRoll::roll_suml(x[(left:right) + snapdisp], n=3L, by=3L, fill = NULL)
+  RcppRoll::roll_suml(x[(left:right) + snapdisp], n=1L, by=1L, fill = NULL)
+}  ##I changed n= and by= from 3L to 1L bc I want NT resolution 
+
+left = Get5UTRstart(test_orfs[1], gff_df) #finds left and right value for each gene 
+right = CDS3_end(test_orfs[1], gff_df)
+
+Get5UTRstart <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene, type=="UTR5" ) %>% 
+    dplyr::pull(start)
 }
 
-left = getCDS5start(test_orfs[1], gff_df) #finds left and right value for each gene 
-right = GetCDS3end(test_orfs[1], gff_df)
-
-getCDS5start <- function(name, gffdf, ftype="CDS", fstrand="+") {
-  gffdf %>% 
-    filter(type==ftype, Name == name, strand == fstrand) %>% 
-    pull(start) %>% 
-    min 
-}
-
-GetCDS3end <- function(name, gffdf, ftype="CDS", fstrand="+") {
-  gffdf %>% 
-    filter(type==ftype, Name == name, strand == fstrand) %>% 
-    pull(end) %>% 
-    max 
-}
+# Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
+CDS3_end <- function(gene, x) {
+  x %>% 
+    dplyr::filter(Name == gene, type=="UTR5") %>% 
+    dplyr::pull(end) + nnt_gene
+} 
 
 
 ###
@@ -395,55 +394,71 @@ final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = data
   read_length = c(28, 29, 30),
   asite_disp = c(15, 15, 15)), snapdisp = 0L)
 
-# #[1]    0  143   19   20   15   79  104  138  427   63   47    8   32   25  161  268   37   30   29
-# [20]   40  220  167  443  114  251  696 1278  132   25   60   38  493  347  500   45    6   13   21
-# [39]   90  200  213   32  239  214  331   83  441  280   30  136  167  514 3187 1056  771  147  261
-# [58]   10    5  134  213  347 3204  195   45  186   35   70  482  307  104  126  349   94   51  172
-# [77]  141  426  129   23  469   58   64    2  149  178  101  113  151  681  137   34   47  171  105
-# [96]  331  605   74   74   98   85  208  176   58  283   97  197   27   11   38   66   79  104   85
-# [115]  333   60   53   83   19  202  176   25  140  815  128   74  110   35  238  537  357   39   39
-# [134]   72  138  269   10   55  439  150  332  127   36   49   78   74   45  154  946  295   91   82
-# [153]  591  117   61   21   57  238   53    9  687  135  220   49  406  562 3730 2833  539  225  827
-# [172]  373  257  401  264   66   86  108   19  155  194   15   19   55   87  295  386  237   46  218
-# [191]  117   58  451  359  474   86  105  277  169  203  199   11  179   60  106  115   60   54    9
-# [210]   14   41  166   48   12   12   44  265  128  280  665   87   51  182  349  285  240  559   47
-# [229]  137  183  187   49    4  190   43   59  112  248  130  242  405   95  219   60   16   30  161
-# [248]   13   56  135    4  150  113  353  312  378  145   34   31   79   35   53  217  284  244  159
-# [267]   67  236  237  350  539  105  361  635  573  254  519  160  187  326  222   26   17  100  582
-# [286]   92   91   98  212  478   41  175   96  538   51  626  245  255  148  163   27  173   49  154
-# [305]  320  135   50  219  584  200  313  332  109   72   13   18  148  440  315   33   24   75  205
-# [324]  185  459  219  177   48  551  307  163  123  278  111   62  110  115  192 1468  463  602  443
-# [343]  147   64  366   99   69  213  121  154  203  318  193   33   39   51   92   36  134   45  162
-# [362]  312  243   58   39   45   40   30   13   46   21  189   16  173  385  302  110  248  523   83
-# [381]  250  297  418  561  375  429  318  202 5581  644   31   12   29   36  109   62   69   92  191
-# [400]   89  148  317   36   69  107  136  180  109   34   78  172  478  293   41   25   12   24
-> 
-  # For RPF datasets, generate codon-based position-specific reads
-  
-  NormByMean <- function(x,...) {
-    x / mean(x,...)
-  }  
+> final_A_mapped
+# [1]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+# [22]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+# [43]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   1
+# [64]   1   0   1   1  10   4   9  15   3  89   3   0   0   0   0   0   0   0   1   0   0
+# [85] 142  20  19  13  82  15 225 409  79  51   7  28  12 174  85 225
+# > 
+# For RPF datasets, generate codon-based position-specific reads
+
     # Get codon-based position-specific reads for each gene, in a tibble
-    reads_per_codon_etc <- tibble(gene=test_orfs[1]) %>%
-      mutate(CountPerCodon = map(gene, ~GetGeneCodonPosReads1dsnap(
-        .,
-        dataset,
-        hdf5file,
-        left = left,
-        right = right,
-        min_read_length = 10,
-        asite_disp_length = data.frame(
-          read_length = c(28, 29, 30),
-          asite_disp = c(15, 15, 15)
-        ),
-      ) ),
-      NormCtperCodon = map(CountPerCodon, ~NormByMean(.) ),
-      SumAsiteCt = map(CountPerCodon,~sum(.)) %>% unlist,
-      LengthCodons = map(CountPerCodon,~length(.)) %>% unlist
-      )
-  ##the normalizing bits are not necessary 
+    # reads_per_codon_etc <- tibble(gene=test_orfs[1]) %>%
+Counts_Asite_mapped  <- map(test_orfs[1], ~GetGeneCodonPosReads1dsnap(
+  .,
+  dataset,
+  hdf5file,
+  left = left,
+  right = right,
+  min_read_length = 10,
+  asite_disp_length = data.frame(
+    read_length = c(28, 29, 30),
+    asite_disp = c(15, 15, 15)
+  )
+)) %>%
+  as_tibble(.name_repair = "universal") %>%
+  set_colnames("CountsAsite")
+
+xxx <- cbind(Counts_Asite_mapped, tibble1)
 
 
+plotting_5Asite<- function(input_data) {
+  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  
+  #the actual plotting
+  plotted_UTR <- ggplot(input_data) +
+    geom_density(aes(x=Pos, y=CountsAsite), stat="identity") +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
+    # coord_cartesian(clip = "off") +
+    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+    theme_classic() %>%
+    return()
+}
+xxx_plot <-plotting_5Asite(xxx)
+
+comparison_plot <-plotting_5UTR(tibble1)
+
+ggarrange(xxx_plot,comparison_plot)
+
+      # # A tibble: 100 x 1
+      # ``
+      # <dbl>
+      #   1     0
+      # 2     0
+      # 3     0
+      # 4     0
+      # 5     0
+      # 6     0
+      # 7     0
+      # 8     0
+      # 9     0
+      # 10     0
+      # # … with 90 more rows
+#so i've inserted data with 300 positions but it gives a 100-long output and that makes absolute sense bc it's codon-specific so 100x3
 ##########################################################################################
                                       ##Zooming in ## 
 
@@ -571,7 +586,7 @@ uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) #=> ou
 
 
 ####################################################################################################
-                                   ##Working space for tibble5##
+                              ##Working space for tibble5##
 
 ##idea: find different positions at which read count > 0, calculate the efficiency of that region relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts > 0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with larger thresholds
 
