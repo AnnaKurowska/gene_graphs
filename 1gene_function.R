@@ -418,7 +418,30 @@ final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = data
 # [381]  250  297  418  561  375  429  318  202 5581  644   31   12   29   36  109   62   69   92  191
 # [400]   89  148  317   36   69  107  136  180  109   34   78  172  478  293   41   25   12   24
 > 
-
+  # For RPF datasets, generate codon-based position-specific reads
+  
+  NormByMean <- function(x,...) {
+    x / mean(x,...)
+  }  
+    # Get codon-based position-specific reads for each gene, in a tibble
+    reads_per_codon_etc <- tibble(gene=test_orfs[1]) %>%
+      mutate(CountPerCodon = map(gene, ~GetGeneCodonPosReads1dsnap(
+        .,
+        dataset,
+        hdf5file,
+        left = left,
+        right = right,
+        min_read_length = 10,
+        asite_disp_length = data.frame(
+          read_length = c(28, 29, 30),
+          asite_disp = c(15, 15, 15)
+        ),
+      ) ),
+      NormCtperCodon = map(CountPerCodon, ~NormByMean(.) ),
+      SumAsiteCt = map(CountPerCodon,~sum(.)) %>% unlist,
+      LengthCodons = map(CountPerCodon,~length(.)) %>% unlist
+      )
+  ##the normalizing bits are not necessary 
 
 
 ##########################################################################################
