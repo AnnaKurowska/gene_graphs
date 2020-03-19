@@ -163,23 +163,17 @@ plotting_5UTR<- function(input_data) {
 #
 #                                     ##multiple plots##
 #
-# ###ok so that's the final function for plotting all graphs from a list of tibbles (output from )
-#     #still dont know how to name each graph and give a title to the plot overall
+
 plotting_multiple <- function(input_data) {
   purrr :: map(input_data, plotting_5UTR) %>%
     ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
     return()
     #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
-#
-# xxx<-plotting_multiple(output_orfs)
-# #issue with the name now..same for all, i think it means we need to name them earlier on so we know what's what. Why does it only use the YCR012W?
-#
-# ggsave("multiple", device = "jpg")
 
-# ###### 2 in one
-#
-# # for WT_3AT
+####################################################################################
+                                    ##2 in one##
+
 #
 # hd_file <- WT_3AT
 # hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
@@ -187,11 +181,7 @@ plotting_multiple <- function(input_data) {
 # output_orfs_3AT <-final_function_table(test_orfs)
 #
 # ######
-# #so now we need to create a plot including both
-# ##we need to select each tibble only (can use map again)
-#
-#
-# ###okay i absolutely can't be bothered to work on it anymore, im gonna move to the zooming in bit
+
 # two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
 #
 # two_in_one_plots <- function(sample1, sample2) {
@@ -360,19 +350,18 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 left = Get5UTRstart(test_orfs[1], gff_df) #finds left and right value for each gene 
 right = CDS3_end(test_orfs[1], gff_df)
 
-Get5UTRstart <- function(gene, x) {
-  x %>% 
-    dplyr::filter(Name == gene, type=="UTR5" ) %>% 
-    dplyr::pull(start)
-}
-
-# Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
-CDS3_end <- function(gene, x) {
-  x %>% 
-    dplyr::filter(Name == gene, type=="UTR5") %>% 
-    dplyr::pull(end) + nnt_gene
-} 
-
+# Get5UTRstart <- function(gene, x) {
+#   x %>% 
+#     dplyr::filter(Name == gene, type=="UTR5" ) %>% 
+#     dplyr::pull(start)
+# }
+# 
+# # Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
+# CDS3_end <- function(gene, x) {
+#   x %>% 
+#     dplyr::filter(Name == gene, type=="UTR5") %>% 
+#     dplyr::pull(end) + nnt_gene
+# } 
 
 ###
 GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right, 
@@ -459,7 +448,7 @@ ggarrange(xxx_plot,comparison_plot)
       # 10     0
       # # … with 90 more rows
 #so i've inserted data with 300 positions but it gives a 100-long output and that makes absolute sense bc it's codon-specific so 100x3
-##########################################################################################
+####################################################################################
                                       ##Zooming in ## 
 
 # test object with 1 gene
@@ -501,102 +490,129 @@ ggarrange(xxx_plot,comparison_plot)
 # example run, set to uAUG_ending:
 #uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
 
-sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
-  datatibble %>%
-    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
-    return()
-}
+# sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
+#   datatibble %>%
+#     filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+#     summarise(sum_read_counts_uAUG=sum(Counts)) %>%
+#     return()
+# }
+# 
+# # to run:
+# #sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+# # example run set to sum_uAUG_result
+# #sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
+# 
+# 
+# ####AUG
+# finding_AUG_beginning <- function(datatibble) {
+#   datatibble %>%
+#     dplyr::select(Pos) %>%
+#     filter(Pos == -10) %>%  #I changed the value to 6 so altogether now it's 12nt region
+#     pull
+# }
+# 
+# # to run:
+# #finding_AUG_beginning(tibble1)
+# # example run, set to uAUG_beginning:
+# #AUG_beginning <- finding_AUG_beginning(tibble1)
+# 
+# finding_AUG_ending <- function(AUG_start) {-
+#     AUG_start + temporary_length %>%
+#     return()
+# }
+# 
+# # to run:
+# #finding_AUG_ending(AUG_beginning)
+# # example run, set to uAUG_ending:
+# #AUG_ending <- finding_AUG_ending(AUG_beginning)
+# 
+# sum_AUG <- function(datatibble, AUG_start, AUG_end){
+#   datatibble %>%
+#     filter(Pos >= AUG_start, Pos <= AUG_end) %>%
+#     summarise(sum_read_counts_AUG=sum(Counts)) %>%
+#     return()
+# }
+# # to run:
+# #sum_AUG(tibble1, AUG_beginning, AUG_ending )
+# # example run, set to uAUG_ending:
+# #sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
+# 
+# ##efficiency
+# upstream_efficiency <- function(uAUG_sum_result, AUG_sum_result) {
+#   (uAUG_sum_result/AUG_sum_result *100) %>%
+#     return()
+# }
+# 
+# #upstream_efficiency(sum_uAUG_result/sum_AUG_result)
+# 
+# ##final function
+# 
+# uAUG_efficiency <- function(datatibble, uAUG_start,uAUG_end) {
+# #finding uAUG and AUG endpoints
+#   AUG_start <- -10
+#   AUG_end <- AUG_start + temporary_length
+#   # AUG_start <-finding_AUG_beginning(datatibble)
+#   # AUG_end <- finding_AUG_ending(AUG_start)
+#   # uAUG_start <-finding_uAUG_beginning(datatibble)
+#   # uAUG_end <- finding_uAUG_ending(uAUG_start)
+# 
+#   #summing uAUG and AUG region
+#   final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
+#   final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
+# 
+#   #calculating the efficiency
+#   final_result_of_efficiency <- upstream_efficiency(final_sum_uAUG, final_sum_AUG)
+#   paste0(final_result_of_efficiency)
+# }
+# 
+# ##
+# uAUG_efficiency_many_genes <- function(datatibble, uAUG_start, uAUG_end) {
+#   map(datatibble, uAUG_efficiency, uAUG_start, uAUG_end)
+# }
+# ## example:
+# saved <- uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) %>%
+#   as_tibble(.name_repair = "minimal")
 
-# to run: 
-#sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
-# example run set to sum_uAUG_result
-#sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
-
-
-####AUG
-finding_AUG_beginning <- function(datatibble) {
-  datatibble %>% 
-    dplyr::select(Pos) %>%
-    filter(Pos == -10) %>%  #I changed the value to 6 so altogether now it's 12nt region
-    pull 
-}
-
-# to run: 
-#finding_AUG_beginning(tibble1)
-# example run, set to uAUG_beginning:
-#AUG_beginning <- finding_AUG_beginning(tibble1)
-
-finding_AUG_ending <- function(AUG_start) {-
-    AUG_start + temporary_length %>%
-    return()
-}
-
-# to run: 
-#finding_AUG_ending(AUG_beginning)
-# example run, set to uAUG_ending:
-#AUG_ending <- finding_AUG_ending(AUG_beginning)
-
-sum_AUG <- function(datatibble, AUG_start, AUG_end){
-  datatibble %>%
-    filter(Pos >= AUG_start, Pos <= AUG_end) %>%
-    summarise(sum_read_counts_AUG=sum(Counts)) %>%
-    return()
-}
-# to run: 
-#sum_AUG(tibble1, AUG_beginning, AUG_ending )
-# example run, set to uAUG_ending:
-#sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
-
-##efficiency
-upstream_efficiency <- function(uAUG_sum_result, AUG_sum_result) {
-  (uAUG_sum_result/AUG_sum_result *100) %>% 
-    return()
-}
-  
-#upstream_efficiency(sum_uAUG_result/sum_AUG_result)
-
-##final function 
-
-uAUG_efficiency <- function(datatibble, uAUG_start,uAUG_end) {
-#finding uAUG and AUG endpoints
-  AUG_start <- -10
-  AUG_end <- AUG_start + temporary_length
-  # AUG_start <-finding_AUG_beginning(datatibble)
-  # AUG_end <- finding_AUG_ending(AUG_start)
-  # uAUG_start <-finding_uAUG_beginning(datatibble)
-  # uAUG_end <- finding_uAUG_ending(uAUG_start)
-
-  #summing uAUG and AUG region
-  final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
-  final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
-  
-  #calculating the efficiency
-  final_result_of_efficiency <- upstream_efficiency(final_sum_uAUG, final_sum_AUG) 
-  paste0(final_result_of_efficiency)
-}
-
-##
-uAUG_efficiency_many_genes <- function(datatibble, uAUG_start, uAUG_end) {
-  map(datatibble, uAUG_efficiency, uAUG_start, uAUG_end)
-}
-## example:
-saved <- uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) %>%
-  as_tibble(.name_repair = "minimal") 
-  ###okay that works: 39.7738951695786	206.474820143885	14012.5	1200	333.333333333333
-###okay so a new idea: i will be looking at specific regions 
-##i basically just want it to calculate several regions for the same gene and then iterate it over multiple genes, i could technically use the rcpproll 
-    #the n=is the window
-
-windowed <- function(tibble) {
+sliding_windows <- function(tibble) {
   RcppRoll::roll_sum(tibble1$Counts, n =30, by = 30) %>% 
     as_tibble(.name_repair = "minimal") %>%
     t() %>%
-      set_colnames(value = c(seq(from = -250, to = 20, by = 30)))
+      set_colnames(value = c(seq(from = -250, to = 20, by = 30))) %>%
+    set_rownames("Read Count") %>%
+    return()
 }
-vectorered <- windowed(tibble1)
 
-xxxx <-map(output_orfs,windowed)
+sliding_windows_multiple <- function(tibble){
+  map(tibble, sliding_windows ) %>%
+    return()
+}
+
+xxxx <- sliding_windows_multiple(output_orfs) 
+##same output for each gene 
+# > xxxx
+# [[1]]
+# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
+# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# 
+# [[2]]
+# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
+# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# 
+# [[3]]
+# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
+# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# 
+# [[4]]
+# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
+# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# 
+# [[5]]
+# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
+# Read Count    0    0    0    0    0    6 160 221 1433 1608
+
+
+
+
 ####################################################################################################
                               ##Working space for tibble5##
 
