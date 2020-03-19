@@ -573,8 +573,7 @@ uAUG_efficiency <- function(datatibble, uAUG_start,uAUG_end) {
   
   #calculating the efficiency
   final_result_of_efficiency <- upstream_efficiency(final_sum_uAUG, final_sum_AUG) 
-  
-  paste0("Efficiency of upstream translation initiation is ", final_result_of_efficiency, " % relative to the AUG start site with " , final_sum_uAUG , " read counts in the UTR and ", final_sum_AUG , " read counts around the AUG" )
+  paste0(final_result_of_efficiency)
 }
 
 ##
@@ -582,9 +581,22 @@ uAUG_efficiency_many_genes <- function(datatibble, uAUG_start, uAUG_end) {
   map(datatibble, uAUG_efficiency, uAUG_start, uAUG_end)
 }
 ## example:
-uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) #=> output as expected 
+saved <- uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) %>%
+  as_tibble(.name_repair = "minimal") 
+  ###okay that works: 39.7738951695786	206.474820143885	14012.5	1200	333.333333333333
+###okay so a new idea: i will be looking at specific regions 
+##i basically just want it to calculate several regions for the same gene and then iterate it over multiple genes, i could technically use the rcpproll 
+    #the n=is the window
 
+windowed <- function(tibble) {
+  RcppRoll::roll_sum(tibble1$Counts, n =30, by = 30) %>% 
+    as_tibble(.name_repair = "minimal") %>%
+    t() %>%
+      set_colnames(value = c(seq(from = -250, to = 20, by = 30)))
+}
+vectorered <- windowed(tibble1)
 
+xxxx <-map(output_orfs,windowed)
 ####################################################################################################
                               ##Working space for tibble5##
 
