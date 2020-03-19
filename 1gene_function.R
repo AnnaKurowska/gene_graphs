@@ -574,7 +574,7 @@ ggarrange(xxx_plot,comparison_plot)
 #   as_tibble(.name_repair = "minimal")
 
 sliding_windows <- function(tibble) {
-  RcppRoll::roll_sum(tibble1$Counts, n =30, by = 30) %>% 
+  RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
     as_tibble(.name_repair = "minimal") %>%
     t() %>%
       set_colnames(value = c(seq(from = -250, to = 20, by = 30))) %>%
@@ -588,90 +588,31 @@ sliding_windows_multiple <- function(tibble){
 }
 
 xxxx <- sliding_windows_multiple(output_orfs) 
-##same output for each gene 
-# > xxxx
 # [[1]]
 # -250 -220 -190 -160 -130 -100 -70 -40  -10   20
 # Read Count    0    0    0    0    0    6 160 221 1433 1608
 # 
 # [[2]]
-# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
-# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# -250 -220 -190 -160 -130 -100 -70 -40 -10  20
+# Read Count    3    0  132   50    3    1   7  91 151 156
 # 
 # [[3]]
-# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
-# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
+# Read Count    3    5   64   13  515  489  28   4  10  4
 # 
 # [[4]]
-# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
-# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
+# Read Count    0    4    1    0   10    4   0   5   5 11
 # 
 # [[5]]
-# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
-# Read Count    0    0    0    0    0    6 160 221 1433 1608
+# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
+# Read Count    0    0    0    0    0    0   0  10   3  9
 
 
 
 
-####################################################################################################
-                              ##Working space for tibble5##
 
-##idea: find different positions at which read count > 0, calculate the efficiency of that region relative to the AUG site, (which must be the same for AUG and each non-AUG), start counting from counts > 0: if larger than some % threshold then calculate the efficiency, if smaller just skip, do that for each counts > 0 result, the output will be only done for sites with larger thresholds
-
-##### Function for the AUG start codons needs to be changed
-# tibble5 <- output_orfs[[5]]
-# 
-# finding_AUG_beginning <- function(datatibble) {
-#   datatibble %>%
-#     dplyr::select(Pos) %>%
-#     filter(Pos == -10) %>%  #I changed the value to 6 so altogether now it's 12nt region
-#     pull
-# }
-
-#so i'm first calculating the efficiency of AUG initiation
-#start of the search, i could be just looking at a specific region flanking the AUG site, maybe it could be maybe 24 NTs?
-
-#step: find each counts > 0 and calculate the % for it
-
-# you're getting a table with only counts > 0 values,
-# finding_uAUG_beginning2 <- function(datatibble) {
-#   datatibble %>%
-#     dplyr :: filter(Counts > 0) %>%
-# 
-# i could create a function that takes the uAUG positions and creates a vector of every 20th position, then we select only these raws
-#   > seq(from=0,to=100, by=20)
-# [1]   0  20  40  60  80 100
-# again it's not exactly the same, we're taking basically omitting every 20th value from the table
-# another option
-# m[seq(1, length(m), 20)] %>%good idea but not that exactly
-#     return()
-# 
-# }
-  
-# finding_uAUG_beginning2_single <- function(datatibble) {
-#   datatibble %>% 
-#     dplyr :: filter(Counts > 0) %>%
-#     min
-# }
-# uAUG_first_value <-finding_uAUG_beginning2_single(tibble5)
-# # [1] -31
-# 
-# seq(from =uAUG_first_value, to)
-
-#find beginning for each count > 0 site
-# AUG_beginning_tibble5 <- finding_uAUG_beginning2(tibble5)
-# > AUG_beginning_tibble5
-#[1] -9 34 38
-
-
-#find end for each count > 0 site
-# AUG_end_tibble5<-finding_uAUG_ending(AUG_beginning_tibble5)
-#[1]  21 -22 -26
-
-#then calculate the percentage relative to AUG 
-
-
-                                      ##Zooming in ##
+ 
 ##########################################################################################
                                   ##AUG annotation issue 
 
