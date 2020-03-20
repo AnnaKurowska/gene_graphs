@@ -160,9 +160,7 @@ plotting_5UTR<- function(input_data) {
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
     theme_classic()
 }
-#
-#                                     ##multiple plots##
-#
+                            ##multiple plots##
 
 plotting_multiple <- function(input_data) {
   purrr :: map(input_data, plotting_5UTR) %>%
@@ -195,7 +193,7 @@ plotting_multiple <- function(input_data) {
 # }
 
 ###################################################################################
-                              #A site displacement slot#
+                            #A site displacement slot#
 
 ###
 CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
@@ -337,7 +335,7 @@ final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = data
 
     # Get codon-based position-specific reads for each gene, in a tibble
     # reads_per_codon_etc <- tibble(gene=test_orfs[1]) %>%
-Counts_Asite_mapped  <- map(test_orfs[1], ~GetGeneCodonPosReads1dsnap(
+Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   .,
   dataset,
   hdf5file,
@@ -347,51 +345,53 @@ Counts_Asite_mapped  <- map(test_orfs[1], ~GetGeneCodonPosReads1dsnap(
   asite_disp_length = data.frame(
     read_length = c(28, 29, 30),
     asite_disp = c(15, 15, 15)
-  )
-)) %>%
-  as_tibble(.name_repair = "universal") %>%
-  set_colnames("CountsAsite")
+  ))) 
 
-tibble1 <- output_orfs[[1]]
-A_site_and_counts <- cbind(Counts_Asite_mapped, tibble1)
+%>%  
+  as_tibble(.name_repair = "unique")
+ 
+  function(x,startpos = 1, startlen = 1,gene) {
+    # CHECK startpos/off-by-one
+    positions <- startpos:(startpos + ncol(x) - 1)
+    readlengths <- startlen:(startlen + nrow(x) - 1)
+    x %>%
+      set_colnames(positions) %>%
+      as_tibble() %>% 
+      # names(x) <- paste(gene) %>%  how to do that?
+      mutate(ReadLen = readlengths) %>%
+      gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+      mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
+      group_by(Pos) %>%
+      summarise(Counts=sum(Counts))
+  }
+   # as_tibble(.name_repair = "unique") %>%
+  # set_colnames(paste(test_orfs))  %>%
+  # cbind(seq(from = -250, to = 49, by = 1))
 
 
-plotting_5Asite<- function(input_data) {
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
-  #the actual plotting
-  plotted_UTR <- ggplot(input_data) +
-    geom_density(aes(x=Pos, y=CountsAsite), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic() %>%
-    return()
-}
-A_site_and_counts_plot <-plotting_5Asite(A_site_and_counts)
 
-comparison_plot <-plotting_5UTR(tibble1)
 
-ggarrange(A_site_and_counts_plot,comparison_plot)
+# tibble1 <- output_orfs[[1]]
+# A_site_and_counts <- cbind(Counts_Asite_mapped, tibble1)
+# plotting_5Asite<- function(input_data) {
+#   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+#   
+#   #the actual plotting
+#   plotted_UTR <- ggplot(input_data) +
+#     geom_density(aes(x=Pos, y=CountsAsite), stat="identity") +
+#     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#     ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
+#     # coord_cartesian(clip = "off") +
+#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+#     theme_classic() %>%
+#     return()
+# }
+# A_site_and_counts_plot <-plotting_5Asite(A_site_and_counts)
+# comparison_plot <-plotting_5UTR(tibble1)
+# ggarrange(A_site_and_counts_plot,comparison_plot)
 
-      # # A tibble: 100 x 1
-      # ``
-      # <dbl>
-      #   1     0
-      # 2     0
-      # 3     0
-      # 4     0
-      # 5     0
-      # 6     0
-      # 7     0
-      # 8     0
-      # 9     0
-      # 10     0
-      # # … with 90 more rows
-#so i've inserted data with 300 positions but it gives a 100-long output and that makes absolute sense bc it's codon-specific so 100x3
 ####################################################################################
                                       ##Zooming in ## 
 
@@ -536,11 +536,11 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
 #for multiple genes 
 sum_uAUG_multiple<- function(genes, gene_names, uAUG_start, uAUG_end) {
   #function 
-  positionx <- map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
+  map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
     tibble::enframe(name = NULL)  %>%
-    set_rownames(., paste0(gene_names))
+    set_rownames(., paste0(gene_names)) %>%
   #names of columns and rows
-  return(positionx)
+  return()
 }
 
 all_regions_together <- function(genes, gene_names) {
@@ -575,10 +575,6 @@ sliding_windows_multiple <- function(tibble, genes){
 }
 
 xxxx <-sliding_windows_multiple(output_orfs, test_orfs)
-
-#maybe define sliding_windows with the window size and sequence area variables? function (tibble, windowsize=30, viewfrom = -250, viewto= 20)
-#so you're doin seq(from = viewfrom, to = viewto, by = windowsize) and roll_sum(tibble$Counts, n = windowsize, by = windowsize)
-
 ##########################################################################################
                                   ##AUG annotation issue 
 
