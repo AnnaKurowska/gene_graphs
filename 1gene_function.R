@@ -345,7 +345,10 @@ Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   asite_disp_length = data.frame(
     read_length = c(28, 29, 30),
     asite_disp = c(15, 15, 15)
-  ))) 
+  ))) %>%
+  as_tibble(.name_repair = "unique") %>%
+  set_colnames(paste(test_orfs))  %>%
+  cbind(seq(from = -250, to = 49, by = 1))
 
 %>%  
   as_tibble(.name_repair = "unique")
