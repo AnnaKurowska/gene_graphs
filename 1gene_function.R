@@ -460,7 +460,7 @@ ggarrange(A_site_and_counts_plot,comparison_plot)
 # # example run, set to uAUG_beginning:
 # #AUG_beginning <- finding_AUG_beginning(tibble1)
 # 
-# finding_AUG_ending <- function(AUG_start) {-
+# finding_AUG_ending <- function(AUG_start) {
 #     AUG_start + temporary_length %>%
 #     return()
 # }
@@ -517,46 +517,68 @@ ggarrange(A_site_and_counts_plot,comparison_plot)
 # saved <- uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) %>%
 #   as_tibble(.name_repair = "minimal")
 
+###########
+### Creating a table for multiple positions for multiple genes
+
+#0:-15 nt
+#0:-60 nt
+#60:-120 nt
+#0:-250 nt
+
+#creating adjusted regions to sum read counts 
+sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
+  datatibble %>%
+    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
+    pull
+}
+
+#for multiple genes 
+sum_uAUG_multiple<- function(genes, gene_names, uAUG_start, uAUG_end) {
+  #function 
+  positionx <- map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
+    tibble::enframe(name = NULL)  %>%
+    set_rownames(., paste0(gene_names))
+  #names of columns and rows
+  return(positionx)
+}
+
+all_regions_together <- function(genes, gene_names) {
+  region1 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -15, uAUG_end = 0) 
+  region2 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -60, uAUG_end = 0)
+  region3 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -120, uAUG_end = -60)
+  region4 <-sum_uAUG_multiple(genes, gene_names, uAUG_start = -250, uAUG_end = 0)
+  
+  cbind(region1, region2, region3, region4) %>%
+    set_colnames(c("-15:0", "-60:0", "-120:-60", "-250:0")) %>%
+    return()
+}
+
+all_regions_together(genes = output_orfs,gene_names = test_orfs)
+
+################################ seems we're not using it at the end but still useful 
 sliding_windows <- function(tibble) {
   RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
-    as_tibble(.name_repair = "minimal") %>%
+    tibble::enframe(name = NULL) %>%
+     t()
+}
+
+sliding_windows_multiple <- function(tibble, genes){
+  names(tibble) <- genes
+  joined <-map(tibble, sliding_windows ) 
+  col_names <- seq(from = -250, to = 20, by = 30)
+  
+  bind_rows(joined) %>%
+    set_rownames( value = c(seq(from = -250, to = 20, by = 30)))  %>%
     t() %>%
-      set_colnames(value = c(seq(from = -250, to = 20, by = 30))) %>%
-    set_rownames("Read Count") %>%
-    return()
+    return()  ###add a column instead of the set_rownames and you want these to be ranges (from -250 to -230)
 }
 
-sliding_windows_multiple <- function(tibble){
-  map(tibble, sliding_windows ) %>%
-    return()
-}
+xxxx <-sliding_windows_multiple(output_orfs, test_orfs)
 
-xxxx <- sliding_windows_multiple(output_orfs) 
-# [[1]]
-# -250 -220 -190 -160 -130 -100 -70 -40  -10   20
-# Read Count    0    0    0    0    0    6 160 221 1433 1608
-# 
-# [[2]]
-# -250 -220 -190 -160 -130 -100 -70 -40 -10  20
-# Read Count    3    0  132   50    3    1   7  91 151 156
-# 
-# [[3]]
-# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
-# Read Count    3    5   64   13  515  489  28   4  10  4
-# 
-# [[4]]
-# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
-# Read Count    0    4    1    0   10    4   0   5   5 11
-# 
-# [[5]]
-# -250 -220 -190 -160 -130 -100 -70 -40 -10 20
-# Read Count    0    0    0    0    0    0   0  10   3  9
+#maybe define sliding_windows with the window size and sequence area variables? function (tibble, windowsize=30, viewfrom = -250, viewto= 20)
+#so you're doin seq(from = viewfrom, to = viewto, by = windowsize) and roll_sum(tibble$Counts, n = windowsize, by = windowsize)
 
-
-
-
-
- 
 ##########################################################################################
                                   ##AUG annotation issue 
 
