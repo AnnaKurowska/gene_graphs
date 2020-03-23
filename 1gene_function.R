@@ -134,7 +134,6 @@ UTR5_table <- function(gene) {
   return()
 }
 
-
 #the final function i'd use :) iteration of UTR5_table 
 final_function_table <- function(x){
  purrr::map(x, UTR5_table)  ### as_tibble(.name_repair = "unique)
@@ -142,58 +141,7 @@ final_function_table <- function(x){
 
 output_orfs<-final_function_table(test_orfs) #it works just fine 
 
-
-############################################################################################                                               ##plotting##
-
-#main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
-plotting_5UTR<- function(input_data) {
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-
-  #the actual plotting
-  plotted_UTR <- ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic()
-}
-                            ##multiple plots##
-
-plotting_multiple <- function(input_data) {
-  purrr :: map(input_data, plotting_5UTR) %>%
-    ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
-    return()
-    #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
-}
-
-####################################################################################
-                                    ##2 in one##
-
-#
-# hd_file <- WT_3AT
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-#
-# output_orfs_3AT <-final_function_table(test_orfs)
-#
-# ######
-
-# two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
-#
-# two_in_one_plots <- function(sample1, sample2) {
-#   more_plots <- ggplot(sample1) +
-#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
-#     geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
-#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
-#     scale_y_continuous(expand = c(0,0)) +
-#     labs(y= "Read count", x = "Position") +
-#     theme_classic()
-# }
-
-###################################################################################
-                            #A site displacement slot#
+#########################A site displacement slot#########################
 
 ###
 CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
@@ -211,26 +159,6 @@ something <- CalcAsiteFixedOneLength(reads_pos_length = GetGeneDatamatrix(gene =
 # > something
 # [1]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
 # [20]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [39]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [58]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [77]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [96]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [115]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [134]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [153]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [172]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    1    0    0
-# [191]    0    0    0    0    0    0    1    0    0    1    0    0    2    0    0    0    3    0    0
-# [210]    1    0    9    1    0    1    0    0    4    5    0    0    0    0    0    0    0    0    0
-# [229]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [248]    0    0    0    0    0    0   80    8    0    6    2    0    6    1    0    9    2    0   59
-# [267]   18    0    6    6    3  129    6    1  278   20    0   40   17    3   42    3    0    1    1
-# [286]    1   19    0    0    0    4    9   36   14    0   42    6   33   25    2    0   12    1    0
-# [305]   22    1    0    1    0    0  162    0    3   71   51    0   73   53   18   55   25    1   37
-# [324]    3    0  502   65   10   83   54    6   10   20    7   19    2    0   53    1    0   11    0
-# [343]    1   27   53    1  279   30    1  283   13    0    0   23    0    0    3    0   10    0    1
-# [362]    7    3    0   62   17    2  120   62    4  107   21   21   10    5    2   40  127    0  101
-# [381]   12    5   91   53    1   33   34    2    8   11   12  139   28   16   13    9    0   87   32
-# [400]    0  114   18    2  352   30   13 2532   28   13   86  137    2  273   70   38   61   23    1
 
 ###
 CalcAsiteFixed <- function(reads_pos_length, min_read_length,
@@ -331,10 +259,8 @@ final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = data
 # [64]   1   0   1   1  10   4   9  15   3  89   3   0   0   0   0   0   0   0   1   0   0
 # [85] 142  20  19  13  82  15 225 409  79  51   7  28  12 174  85 225
 # > 
-# For RPF datasets, generate codon-based position-specific reads
+Pos <-seq(from = -250, to = 49, by = 1)
 
-    # Get codon-based position-specific reads for each gene, in a tibble
-    # reads_per_codon_etc <- tibble(gene=test_orfs[1]) %>%
 Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   .,
   dataset,
@@ -347,53 +273,92 @@ Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
     asite_disp = c(15, 15, 15)
   ))) %>%
   as_tibble(.name_repair = "unique") %>%
-  set_colnames(paste(test_orfs))  %>%
-  cbind(seq(from = -250, to = 49, by = 1))
+  set_colnames(paste(test_orfs)) %>%
+  cbind(Pos)
 
-%>%  
-  as_tibble(.name_repair = "unique")
- 
-  function(x,startpos = 1, startlen = 1,gene) {
-    # CHECK startpos/off-by-one
-    positions <- startpos:(startpos + ncol(x) - 1)
-    readlengths <- startlen:(startlen + nrow(x) - 1)
-    x %>%
-      set_colnames(positions) %>%
-      as_tibble() %>% 
-      # names(x) <- paste(gene) %>%  how to do that?
-      mutate(ReadLen = readlengths) %>%
-      gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-      mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
-      group_by(Pos) %>%
-      summarise(Counts=sum(Counts))
-  }
+  
+plotting_5Asite<- function(input_data) {
+  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  
+  #the actual plotting
+  plotted_UTR <- ggplot(input_data) +
+    geom_density(aes(x = Pos, y = ), stat="identity") +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
+    # coord_cartesian(clip = "off") +
+    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+    theme_classic() %>%
+    return()
+}
+
+tibble1 <-as_tibble(output_orfs[1], .name_repair = "unique")
+ ##only now it's a tbl, before it's still a list 
+
    # as_tibble(.name_repair = "unique") %>%
   # set_colnames(paste(test_orfs))  %>%
   # cbind(seq(from = -250, to = 49, by = 1))
 
 
-
-
 # tibble1 <- output_orfs[[1]]
 # A_site_and_counts <- cbind(Counts_Asite_mapped, tibble1)
-# plotting_5Asite<- function(input_data) {
-#   text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-#   
-#   #the actual plotting
-#   plotted_UTR <- ggplot(input_data) +
-#     geom_density(aes(x=Pos, y=CountsAsite), stat="identity") +
-#     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-#     scale_y_continuous(expand = c(0,0)) +
-#     labs(y= "Read count", x = "Position") +
-#     ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
-#     # coord_cartesian(clip = "off") +
-#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-#     theme_classic() %>%
-#     return()
-# }
+
+
 # A_site_and_counts_plot <-plotting_5Asite(A_site_and_counts)
 # comparison_plot <-plotting_5UTR(tibble1)
 # ggarrange(A_site_and_counts_plot,comparison_plot)
+
+############################################################################################                                               ##plotting##
+
+#main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
+plotting_5UTR<- function(input_data) {
+  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  
+  #the actual plotting
+  plotted_UTR <- ggplot(input_data) +
+    geom_density(aes(x=Pos, y=Counts), stat="identity") +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
+    # coord_cartesian(clip = "off") +
+    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+    theme_classic()
+}
+##multiple plots##
+
+plotting_multiple <- function(input_data) {
+  purrr :: map(input_data, plotting_5UTR) %>%
+    ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
+    return()
+  #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
+}
+
+####################################################################################
+##2 in one##
+
+#
+# hd_file <- WT_3AT
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+#
+# output_orfs_3AT <-final_function_table(test_orfs)
+#
+# ######
+
+# two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
+#
+# two_in_one_plots <- function(sample1, sample2) {
+#   more_plots <- ggplot(sample1) +
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
+#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#     theme_classic()
+# }
+
+
 
 ####################################################################################
                                       ##Zooming in ## 
@@ -541,23 +506,49 @@ sum_uAUG_multiple<- function(genes, gene_names, uAUG_start, uAUG_end) {
   #function 
   map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
     tibble::enframe(name = NULL)  %>%
-    set_rownames(., paste0(gene_names)) %>%
+    # set_rownames(., paste0(gene_names)) %>%
   #names of columns and rows
   return()
 }
 
 all_regions_together <- function(genes, gene_names) {
+  table_genes <-(paste0(gene_names))
   region1 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -15, uAUG_end = 0) 
   region2 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -60, uAUG_end = 0)
   region3 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -120, uAUG_end = -60)
   region4 <-sum_uAUG_multiple(genes, gene_names, uAUG_start = -250, uAUG_end = 0)
   
-  cbind(region1, region2, region3, region4) %>%
-    set_colnames(c("-15:0", "-60:0", "-120:-60", "-250:0")) %>%
+  cbind(table_genes,region1, region2, region3, region4) %>%
+    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0")) %>%
     return()
 }
 
-all_regions_together(genes = output_orfs,gene_names = test_orfs)
+together <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+#i could use reduce for each region to get a metagenomic view 
+
+together_tidied <-gather(together, key = "region", value = "count", -genes)
+
+## that gives an overall view of all read counts at each region 
+plotted_barplots <- function(data) {
+  ggplot(data) +
+    geom_col(aes(x=data$region,y = data$count, color = data$region)) +
+    theme_classic() +
+    labs(y= "Read count", x = "Reads (over each region)")
+  ## that gives an overall view of all read counts at each region 
+}
+plotted_barplots(together_tidied)
+
+## Individual for each gene
+plotted_each_barplot <- function(data, gene){
+   value <-filter(data, genes == gene)
+   
+  ggplot(value) +
+    geom_col(aes(x = value$region, y = value$count, color = value$region)) +
+    theme_classic() +
+    labs(y= "Read count", x = "Reads (over each region)")
+} ## must be "plotted_each_barplot(together_tidied, "YCR012W")"
+
+map(together_tidied, test_orfs)
 
 ################################ seems we're not using it at the end but still useful 
 sliding_windows <- function(tibble) {
