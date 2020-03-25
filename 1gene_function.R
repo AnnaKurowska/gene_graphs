@@ -23,12 +23,12 @@ library(grid)
 
 ###Set up:
 #WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
-#WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+#WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_3AT
+hd_file <- WT_CHX
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
@@ -120,23 +120,26 @@ TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
 
 #final function from raw data processing to data visualization
 UTR5_table <- function(gene) {
-  lapply(gene,
+ lapply(gene,
          function(gene) 
            GetGeneDatamatrix5UTR(gene,
                                  dataset,
                                  hdf5file,
                                  x=gff_df,
                                  nnt_gene = nnt_gene)
-  )%>% #names() <-paste0(gene, SAMPLETBC)
+  ) %>% 
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
-    # uAUG_efficiency %>%  optional to put it here
-  return()
+ return()
+
 }
 
 #the final function i'd use :) iteration of UTR5_table 
-final_function_table <- function(x){
- purrr::map(x, UTR5_table)  ### as_tibble(.name_repair = "unique)
+final_function_table <- function(genes){
+ table <-purrr::map(genes, UTR5_table) 
+ names(table) <- genes
+ return(table)
+  
 }
 
 output_orfs<-final_function_table(test_orfs) #it works just fine 
@@ -273,8 +276,10 @@ Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
     asite_disp = c(15, 15, 15)
   ))) %>%
   as_tibble(.name_repair = "unique") %>%
-  set_colnames(paste(test_orfs)) %>%
-  cbind(Pos)
+  set_colnames(paste(test_orfs))
+
+
+  # cbind(Pos)
 
   
 plotting_5Asite<- function(input_data) {
@@ -313,7 +318,7 @@ tibble1 <-as_tibble(output_orfs[1], .name_repair = "unique")
 
 #main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
 plotting_5UTR<- function(input_data) {
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
   
   #the actual plotting
   plotted_UTR <- ggplot(input_data) +
@@ -321,19 +326,28 @@ plotting_5UTR<- function(input_data) {
     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "Read count", x = "Position") +
-    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
+    # ggtitle(paste0("Ribosome footprint density of ", input_data)) +
     # coord_cartesian(clip = "off") +
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
     theme_classic()
 }
+
+yx<-plotting_5UTR(output_orfs[[1]])
+
 ##multiple plots##
 
-plotting_multiple <- function(input_data) {
+plotting_multiple <- function(input_data, gene_names) {
   purrr :: map(input_data, plotting_5UTR) %>%
-    ggarrange(plotlist = .) %>%  ##, common.legend = (maybe to establish a name)
+        ggarrange(plotlist = ., labels = gene_names) %>%  ##, common.legend = (maybe to establish a name)
     return()
   #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
+
+# WT none
+plotting_multiple(output_orfs, test_orfs) %>%
+  ggsave(filename = "fig2.png")
+
+# WT CHX
 
 ####################################################################################
 ##2 in one##
@@ -514,24 +528,35 @@ sum_uAUG_multiple<- function(genes, gene_names, uAUG_start, uAUG_end) {
 all_regions_together <- function(genes, gene_names) {
   table_genes <-(paste0(gene_names))
   region1 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -15, uAUG_end = 0) 
-  region2 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -60, uAUG_end = 0)
+  region2 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -60, uAUG_end = 0) 
   region3 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -120, uAUG_end = -60)
-  region4 <-sum_uAUG_multiple(genes, gene_names, uAUG_start = -250, uAUG_end = 0)
+  region4 <-sum_uAUG_multiple(genes, gene_names, uAUG_start = -250, uAUG_end = 0) 
+  region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10)
   
-  cbind(table_genes,region1, region2, region3, region4) %>%
-    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0")) %>%
+  # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
+  
+  cbind(table_genes,region1, region2, region3, region4, region5) %>%
+    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")) %>%
     return()
 }
 
-together <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+together_CTHX <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
 #i could use reduce for each region to get a metagenomic view 
 
-together_tidied <-gather(together, key = "region", value = "count", -genes)
+together_tidied <-gather(together_CTHX, key = "region", value = "count", -genes) 
+
+#together_bound <- cbind(together_tidied, map(together_tidied$count, unlist))
+
+
+## Wilcoxon for each?##
+wilcox.test(count ~ region, data = together_tidied)
+# Error in model.frame.default(formula = count ~ region, data = together_tidied) : 
+#   invalid type (list) for variable 'count'
 
 ## that gives an overall view of all read counts at each region 
 plotted_barplots <- function(data) {
-  ggplot(data) +
-    geom_col(aes(x=data$region,y = data$count, color = data$region)) +
+  ggplot(data,aes(x=data$region,y = data$count)) +
+    geom_col() +
     theme_classic() +
     labs(y= "Read count", x = "Reads (over each region)")
   ## that gives an overall view of all read counts at each region 
@@ -540,15 +565,18 @@ plotted_barplots(together_tidied)
 
 ## Individual for each gene
 plotted_each_barplot <- function(data, gene){
-   value <-filter(data, genes == gene)
-   
-  ggplot(value) +
-    geom_col(aes(x = value$region, y = value$count, color = value$region)) +
+  value <-filter(data, genes == gene)
+  
+  ggplot(value,aes(x = value$region, y = value$count, fill = value$region)) +
+    geom_col() +
     theme_classic() +
-    labs(y= "Read count", x = "Reads (over each region)")
+    labs(y= "Read count", x = "Reads (over each region)") 
+    # guide_legend(title="my awesome title")
 } ## must be "plotted_each_barplot(together_tidied, "YCR012W")"
 
-map(together_tidied, test_orfs)
+
+plotted_each_barplot(together_tidied, "YCR012W")
+
 
 ################################ seems we're not using it at the end but still useful 
 sliding_windows <- function(tibble) {
