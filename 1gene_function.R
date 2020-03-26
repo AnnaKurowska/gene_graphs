@@ -22,7 +22,7 @@ library(grid)
 # library(HH) #  for position() I probably won't need any of them 
 
 ###Set up:
-#WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
+WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
 #WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
 WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
@@ -103,7 +103,7 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x, nnt_gene) {
 #   return(output_thing)
 # }
 
-TidyDatamatrix <- function(x,startpos = 1, startlen = 1,gene) {
+TidyDatamatrix <- function(x, startpos = 1, startlen = 1,gene) {
   # CHECK startpos/off-by-one
   positions <- startpos:(startpos + ncol(x) - 1)
   readlengths <- startlen:(startlen + nrow(x) - 1)
@@ -255,7 +255,7 @@ final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = data
   read_length = c(28, 29, 30),
   asite_disp = c(15, 15, 15)), snapdisp = 0L)
 
-> final_A_mapped
+ final_A_mapped
 # [1]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
 # [22]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
 # [43]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   1
@@ -344,7 +344,7 @@ plotting_multiple <- function(input_data, gene_names) {
 }
 
 # WT none
-plotting_multiple(output_orfs, test_orfs) %>%
+plotting_multiple(output_orfs[1], test_orfs[1]) %>%
   ggsave(filename = "fig2.png")
 
 # WT CHX
@@ -516,67 +516,81 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
 }
 
 #for multiple genes 
-sum_uAUG_multiple<- function(genes, gene_names, uAUG_start, uAUG_end) {
+sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
   #function 
   map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
-    tibble::enframe(name = NULL)  %>%
+    return()
     # set_rownames(., paste0(gene_names)) %>%
   #names of columns and rows
-  return()
 }
 
 all_regions_together <- function(genes, gene_names) {
-  table_genes <-(paste0(gene_names))
-  region1 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -15, uAUG_end = 0) 
-  region2 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -60, uAUG_end = 0) 
-  region3 <-sum_uAUG_multiple(genes, gene_names,  uAUG_start = -120, uAUG_end = -60)
-  region4 <-sum_uAUG_multiple(genes, gene_names, uAUG_start = -250, uAUG_end = 0) 
-  region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10)
+  table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
+  
+  region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
+  region2 <- sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 10)
+  region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0) 
+  region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0) 
+  region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
   
   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
   
-  cbind(table_genes,region1, region2, region3, region4, region5) %>%
-    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")) %>%
+  cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
+    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")) %>% 
+    gather(key = "region", value = "count", -genes) %>%
     return()
 }
-
-together_CTHX <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+#example: 
+together <-all_regions_together(genes = output_orfs_3AT,gene_names = test_orfs) 
 #i could use reduce for each region to get a metagenomic view 
-
-together_tidied <-gather(together_CTHX, key = "region", value = "count", -genes) 
-
-#together_bound <- cbind(together_tidied, map(together_tidied$count, unlist))
+together$count <- data.frame(count = unlist(together$count))
+together$genes <- data.frame(genes =unlist(together$genes))
+# together_tidied <- together_tidied %>% set_colnames(c("genes", "region", "count")) doesn't work
+together <- as.matrix(together)
 
 
 ## Wilcoxon for each?##
-wilcox.test(count ~ region, data = together_tidied)
-# Error in model.frame.default(formula = count ~ region, data = together_tidied) : 
-#   invalid type (list) for variable 'count'
+lapply(., wilcox.test(count, region, together))
+
+wilcox.test(count, region, as.matrix(together))
 
 ## that gives an overall view of all read counts at each region 
 plotted_barplots <- function(data) {
-  ggplot(data,aes(x=data$region,y = data$count)) +
+  positions <- c( "-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")
+  ggplot(data,aes(x=region, y = count, fill = region)) +
     geom_col() +
     theme_classic() +
-    labs(y= "Read count", x = "Reads (over each region)")
+    labs(y= "Read count", x = "Region (mRNA)") +
+    ggtitle("quantification across all genes") + 
+    scale_x_discrete(limits = positions)
   ## that gives an overall view of all read counts at each region 
 }
-plotted_barplots(together_tidied)
+#example:
+plotted_barplots(together)
 
 ## Individual for each gene
 plotted_each_barplot <- function(data, gene){
+  positions <- c( "-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")
   value <-filter(data, genes == gene)
   
-  ggplot(value,aes(x = value$region, y = value$count, fill = value$region)) +
+  ggplot(value,aes(x = region, y = count, fill = region)) +
     geom_col() +
     theme_classic() +
-    labs(y= "Read count", x = "Reads (over each region)") 
-    # guide_legend(title="my awesome title")
-} ## must be "plotted_each_barplot(together_tidied, "YCR012W")"
+    labs(y= "Read count", x = "Region (mRNA)") +
+    ggtitle(paste0(gene)) + 
+    scale_x_discrete(limits = positions)
+} 
+plotted_each_barplot(together, "YCR012W")
 
+#example 
+apply(together, 1, plotted_each_barplot, test_orfs)
+# so for some reason, the map function doesnt work here 
+## Error in UseMethod("filter_") : 
+##no applicable method for 'filter_' applied to an object of class "list"
+## okay now i know it doesn't matter, bc it worked before for a single gene together_tidied$genes <- as.character(together_tidied$genes)--nothing to do with the character, even if it says so. 
 
-plotted_each_barplot(together_tidied, "YCR012W")
-
+#example per gene
+plotted_each_barplot(together_tidied,"YCR012W")
 
 ################################ seems we're not using it at the end but still useful 
 sliding_windows <- function(tibble) {
@@ -617,3 +631,24 @@ xxxx <-sliding_windows_multiple(output_orfs, test_orfs)
 # xxx<-UTR5_plot_test(test_orfs[1]) #no AUGs for any of them except 1 if done that way 
 # plotx<-plot(xxx,test_orfs[1])
 # plotx
+
+##########################################################################################
+                                     ######FASTQ######
+fq.file <- "/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
+
+fastq_sequence <- Fastqfile(fq.file)
+  #not entirely what i want, a bit confusing: 
+# A tibble: 37,762 x 3
+# Header                        Sequence                      Quality                   
+# <chr>                         <chr>                         <chr>                       
+#   1 >YAL068C                      ACCTATGAAAGATTTATGATTCGTTCAG… GCTGCTTCAACTATATGCCTTTGAGAAT…
+# 2 AACAAATACAATGGTCAAATTAACTTCA… TAGCTCAATCTGACGAAAGAGTCAACTT… CACCATGTTGACCGGTATTGCTCCAGAC…
+# 3 CAGCCATCTCCAGTGCTCTATCCAAGGA… TTCCATAGAAATTGAAAATTAACGAACA… AAAGAAACTTCTACACTATTGTAGAAAA…
+# 4 >YAL067W-A                    ATATTCTCAAAGGCATATAGTTGAAGCA… TTCTGAACGAATCATAAATCTTTCATAG…
+# 5 GAATGTGGGAATGCCAATTATAGGGGTG… TCAAAAAGAATATCCGAATTTTAGATTT… TCTGTAAACTTGTGAACTCTCGGCAAAT…
+# 6 CAAGTTGATATCAAACAGATACATATTT… ACGGCTAACTGAACCTAAGTAGGGATAT… >YAL067C                     
+# 7 AAAAAAACTGCTACAAATAATAAATAAA… ACCAAGCGGAGACATGCGTTTAGATGAG… AATAACATACATGTATTCAATTGTTAAA…
+# 8 AGCGGCAGGTGGAAGACCTGCCAGATGA… ACAGCTGAAAATTTCATCACGACTACAA… ATCGGATCAATGAAAAGGAAAGATCTCA…
+# 9 TTATTAATTAAATTGGATGTCCTTTTAG… AAACAACGCTTACGTTTCGGGAATGAAG… GACTTATGTTGGTCGCTTTTAACCGTTG…
+# 10 TGGGGCTTTTGAAGCGCCAAGTTATTTG… GTTCTGCTTTTTACTATTTGGGCCAGTA… ATTTTACTCCCTGCCAGGTGACCCATAC…
+# … with 37,752 more rows
