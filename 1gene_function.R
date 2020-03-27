@@ -144,6 +144,13 @@ final_function_table <- function(genes){
 
 output_orfs<-final_function_table(test_orfs) #it works just fine 
 
+
+##meta-analysis:
+
+meta_5genes <- UTR5_table(test_orfs) 
+  ##just do the plotting here 
+meta_5genes_plot <- plotting_5UTR(meta_5genes)
+
 #########################A site displacement slot#########################
 
 ###
@@ -352,154 +359,43 @@ plotting_multiple(output_orfs[1], test_orfs[1]) %>%
 ####################################################################################
 ##2 in one##
 
-#
-# hd_file <- WT_3AT
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-#
-# output_orfs_3AT <-final_function_table(test_orfs)
-#
-# ######
+##WT none
+WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
+hd_file <- WT_none
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+output_none <-final_function_table(test_orfs)
 
-# two_in_one_plots(output_orfs[1], output_orfs_3AT[1]) # they're still lists and we want tibbles, otherwise it doesnt work
-#
-# two_in_one_plots <- function(sample1, sample2) {
-#   more_plots <- ggplot(sample1) +
-#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
-#     geom_density(data = sample2, aes(x=Pos, y= Counts), stat="identity", color = "red") +
-#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
-#     scale_y_continuous(expand = c(0,0)) +
-#     labs(y= "Read count", x = "Position") +
-#     theme_classic()
-# }
+## WT_3AT
+WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+hd_file <- WT_3AT
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+output_3AT <-final_function_table(test_orfs)
 
+## WT_CHX
+WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+hd_file <- WT_CHX
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+output_CHX <-final_function_table(test_orfs)
+######
 
+two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
+  ggplot(sample1,aes(x=Pos, y=Counts)) +
+    geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
+    geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
+    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    theme_classic() + 
+    ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
+    scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
+}
+#### that's the kind of stuff i'd like to achieve 
+
+WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 3AT", "WT CHX") 
+# they're still lists and we want tibbles, otherwise it doesnt work
+##I have no idea how to iterate this one
 
 ####################################################################################
-                                      ##Zooming in ## 
-
-# test object with 1 gene
-#tibble1 <- output_orfs[[1]]
-# > str(tibble1)
-# Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	300 obs. of  2 variables:
-#   $ Pos   : int  -250 -249 -248 -247 -246 -245 -244 -243 -242 -241 ...
-# $ Counts: int  0 0 0 0 0 0 0 0 0 0 ...
-
-# tibble5 <- output_orfs[[5]] i've created more tables to play with 
-
-
-##### Function for the upstream codons 
-
-# finding_uAUG_beginning <- function(datatibble) {
-#   datatibble %>% 
-#     dplyr :: filter(Counts > 0) %>%
-#     min() %>%
-#     return()
-# }
-
-###i was playing with tibble5 (instead of tbl1) bc it has much lower count frequency, i encountered the following issue: 
-#for finding_uAUG_beginning(tibble5) if filter(Counts > 4) bc the max count value of tbl5 is 4 so that's a good question how i can tackle that. 
-# Error in FUN(X[[i]], ...) : 
-#   only defined on a data frame with all numeric variables 
-
-# to run: 
-#finding_uAUG_beginning(tibble1)
-# example run, set to uAUG_beginning:
-#uAUG_beginning <- finding_uAUG_beginning(tibble1)
-
-#finding_uAUG_ending <- function(uAUG_start) {
-#   uAUG_start + temporary_length %>%
-#     return()
-# }
-
-# to run: 
-#finding_uAUG_ending(uAUG_beginning)
-# example run, set to uAUG_ending:
-#uAUG_ending <- finding_uAUG_ending(uAUG_beginning)
-
-# sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
-#   datatibble %>%
-#     filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-#     summarise(sum_read_counts_uAUG=sum(Counts)) %>%
-#     return()
-# }
-# 
-# # to run:
-# #sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
-# # example run set to sum_uAUG_result
-# #sum_uAUG_result <- sum_uAUG(tibble1, uAUG_beginning, uAUG_ending)
-# 
-# 
-# ####AUG
-# finding_AUG_beginning <- function(datatibble) {
-#   datatibble %>%
-#     dplyr::select(Pos) %>%
-#     filter(Pos == -10) %>%  #I changed the value to 6 so altogether now it's 12nt region
-#     pull
-# }
-# 
-# # to run:
-# #finding_AUG_beginning(tibble1)
-# # example run, set to uAUG_beginning:
-# #AUG_beginning <- finding_AUG_beginning(tibble1)
-# 
-# finding_AUG_ending <- function(AUG_start) {
-#     AUG_start + temporary_length %>%
-#     return()
-# }
-# 
-# # to run:
-# #finding_AUG_ending(AUG_beginning)
-# # example run, set to uAUG_ending:
-# #AUG_ending <- finding_AUG_ending(AUG_beginning)
-# 
-# sum_AUG <- function(datatibble, AUG_start, AUG_end){
-#   datatibble %>%
-#     filter(Pos >= AUG_start, Pos <= AUG_end) %>%
-#     summarise(sum_read_counts_AUG=sum(Counts)) %>%
-#     return()
-# }
-# # to run:
-# #sum_AUG(tibble1, AUG_beginning, AUG_ending )
-# # example run, set to uAUG_ending:
-# #sum_AUG_result <-sum_AUG(tibble1, AUG_beginning, AUG_ending )
-# 
-# ##efficiency
-# upstream_efficiency <- function(uAUG_sum_result, AUG_sum_result) {
-#   (uAUG_sum_result/AUG_sum_result *100) %>%
-#     return()
-# }
-# 
-# #upstream_efficiency(sum_uAUG_result/sum_AUG_result)
-# 
-# ##final function
-# 
-# uAUG_efficiency <- function(datatibble, uAUG_start,uAUG_end) {
-# #finding uAUG and AUG endpoints
-#   AUG_start <- -10
-#   AUG_end <- AUG_start + temporary_length
-#   # AUG_start <-finding_AUG_beginning(datatibble)
-#   # AUG_end <- finding_AUG_ending(AUG_start)
-#   # uAUG_start <-finding_uAUG_beginning(datatibble)
-#   # uAUG_end <- finding_uAUG_ending(uAUG_start)
-# 
-#   #summing uAUG and AUG region
-#   final_sum_uAUG <- sum_uAUG(datatibble, uAUG_start, uAUG_end )
-#   final_sum_AUG <- sum_AUG(datatibble, AUG_start, AUG_end )
-# 
-#   #calculating the efficiency
-#   final_result_of_efficiency <- upstream_efficiency(final_sum_uAUG, final_sum_AUG)
-#   paste0(final_result_of_efficiency)
-# }
-# 
-# ##
-# uAUG_efficiency_many_genes <- function(datatibble, uAUG_start, uAUG_end) {
-#   map(datatibble, uAUG_efficiency, uAUG_start, uAUG_end)
-# }
-# ## example:
-# saved <- uAUG_efficiency_many_genes(output_orfs,uAUG_start = -Inf,uAUG_end = -11 ) %>%
-#   as_tibble(.name_repair = "minimal")
-
-###########
 ### Creating a table for multiple positions for multiple genes
 
 #0:-15 nt
@@ -518,8 +414,9 @@ sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
 #for multiple genes 
 sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
   #function 
-  map(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
+  sapply(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
     return()
+  #sapply jest lepsze bo nie tworzy listy ale jakieś problemy są 
     # set_rownames(., paste0(gene_names)) %>%
   #names of columns and rows
 }
@@ -536,41 +433,77 @@ all_regions_together <- function(genes, gene_names) {
   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
   
   cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
-    set_colnames(c("genes","-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")) %>% 
-    gather(key = "region", value = "count", -genes) %>%
+    set_colnames(c("genes","-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")) %>%
+    gather( key = "region", value = "count", -genes) %>%
     return()
 }
+
 #example: 
-together <-all_regions_together(genes = output_orfs_3AT,gene_names = test_orfs) 
-#i could use reduce for each region to get a metagenomic view 
-together$count <- data.frame(count = unlist(together$count))
-together$genes <- data.frame(genes =unlist(together$genes))
-# together_tidied <- together_tidied %>% set_colnames(c("genes", "region", "count")) doesn't work
-together <- as.matrix(together)
+together <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+together$count <- as.numeric(together$count)
+
+Wilcoxon_computed <- function(genes, gene_names) {
+  table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
+  
+  region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
+  region2 <- sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 10)
+  region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0) 
+  region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0) 
+  region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
+  
+  # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
+  
+  table <-cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
+    set_colnames(c("genes","-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")) %>%
+    gather( key = "genes", value = "count")
+  table$count <- as.numeric(dif_value$count)
+  
+  wilcoxon_computed <- pairwise.wilcox.test(table$count, table$genes, paired = FALSE, p.adjust.method = "none")
+  return(wilcoxon_computed)
+}
+#wilcoxon test -i think its for all genes? although not sure!
+Wilcoxon_computed(output_orfs, test_orfs)
+# data:  table$count and table$genes 
+# 
+#          -120:-60 -15:-0 -15:10 -250:0
+#   -15:-0 0.69     -      -      -     
+#   -15:10 0.69     0.92   -      -     
+#   -250:0 0.15     0.35   0.46   -     
+#   -60:0  0.69     0.75   1.00   0.35 
+# P value adjustment method: none 
+# Warning messages:
+#   1: In wilcox.test.default(xi, xj, paired = paired, ...) :
+#   cannot compute exact p-value with ties
+# 2: In wilcox.test.default(xi, xj, paired = paired, ...) :
+#   cannot compute exact p-value with ties
+# 3: In wilcox.test.default(xi, xj, paired = paired, ...) :
+#   cannot compute exact p-value with ties
+# 4: In wilcox.test.default(xi, xj, paired = paired, ...) :
+#   cannot compute exact p-value with ties
 
 
-## Wilcoxon for each?##
-lapply(., wilcox.test(count, region, together))
+#### pairwise Wilcoxon 
 
-wilcox.test(count, region, as.matrix(together))
+pairwise.wilcox.test(together$count, together$region, p.adjust.method = "none", , alternative = "greater")  
 
 ## that gives an overall view of all read counts at each region 
 plotted_barplots <- function(data) {
-  positions <- c( "-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")
+  positions <- c( "-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")
+  
   ggplot(data,aes(x=region, y = count, fill = region)) +
     geom_col() +
     theme_classic() +
     labs(y= "Read count", x = "Region (mRNA)") +
     ggtitle("quantification across all genes") + 
-    scale_x_discrete(limits = positions)
+    scale_y_continuous(expand = c(0,0)) +
+    scale_x_discrete(limits = positions) 
+
   ## that gives an overall view of all read counts at each region 
 }
-#example:
-plotted_barplots(together)
 
 ## Individual for each gene
 plotted_each_barplot <- function(data, gene){
-  positions <- c( "-15:0", "-60:0", "-120:-60", "-250:0", "-15:10")
+  positions <- c( "-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")
   value <-filter(data, genes == gene)
   
   ggplot(value,aes(x = region, y = count, fill = region)) +
@@ -578,19 +511,29 @@ plotted_each_barplot <- function(data, gene){
     theme_classic() +
     labs(y= "Read count", x = "Region (mRNA)") +
     ggtitle(paste0(gene)) + 
+    scale_y_continuous(expand = c(0,0)) +
     scale_x_discrete(limits = positions)
 } 
+#WT none
+together <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+together$count <- as.numeric(together$count)
+
 plotted_each_barplot(together, "YCR012W")
+plotted_barplots(together)
+
+#WT 3AT
+together_3AT <-all_regions_together(genes = output_3AT,gene_names = test_orfs) 
+together_3AT$count <- as.numeric(together$count)
+
+plotted_each_barplot(together_3AT, "YCR012W")
+plotted_barplots(together_3AT)
+
+  # I don't know what to do about it, it's clearly an issue with subsetting 
 
 #example 
 apply(together, 1, plotted_each_barplot, test_orfs)
-# so for some reason, the map function doesnt work here 
 ## Error in UseMethod("filter_") : 
 ##no applicable method for 'filter_' applied to an object of class "list"
-## okay now i know it doesn't matter, bc it worked before for a single gene together_tidied$genes <- as.character(together_tidied$genes)--nothing to do with the character, even if it says so. 
-
-#example per gene
-plotted_each_barplot(together_tidied,"YCR012W")
 
 ################################ seems we're not using it at the end but still useful 
 sliding_windows <- function(tibble) {
