@@ -23,7 +23,7 @@ library(grid)
 
 ###Set up:
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-#WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
 WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
@@ -32,7 +32,7 @@ hd_file <- WT_CHX
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 #Initial set ups
-test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W")
+test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W", "YML065W")
 nnt_gene<- 50
 startpos <-250
 startlen <- 10
@@ -149,7 +149,22 @@ output_orfs<-final_function_table(test_orfs) #it works just fine
 
 meta_5genes <- UTR5_table(test_orfs) 
   ##just do the plotting here 
-meta_5genes_plot <- plotting_5UTR(meta_5genes)
+meta_5genes_plot <- plotting_meta_analysis(meta_5genes)
+
+plotting_meta_analysis<- function(input_data) {
+  # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+  
+  #the actual plotting
+  plotted_UTR <- ggplot(input_data) +
+    geom_density(aes(x=Pos, y=Counts), stat="identity") +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+     ggtitle(paste0("Ribosome footprint density of all genes: WT none")) +
+    # coord_cartesian(clip = "off") +
+    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+    theme_classic()
+}
 
 #########################A site displacement slot#########################
 
@@ -203,10 +218,7 @@ CalcAsiteFixed <- function(reads_pos_length, min_read_length,
   }
 }
 
-CalcAsiteFixed(reads_pos_length =GetGeneDatamatrix(gene = test_orfs[1],dataset = dataset,hdf5file = hdf5file), min_read_length = 10 , asite_disp_length =data.frame(
-  read_length = c(28, 29, 30),
-  asite_disp = c(15, 15, 15)
-) , colsum_out = TRUE)
+CalcAsiteFixed(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file), min_read_length = 10, colsum_out = TRUE)
 
 # [1]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
 # [17]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
@@ -250,26 +262,46 @@ GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right,
                                          asite_disp = c(15, 15, 15)
                                        ), 
                                        snapdisp=0L) {
+  left = Get5UTRstart(gene, gff_df) 
+  right = CDS3_end(gene, gff_df)
+  
   reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file) # Get the matrix of read counts
   reads_asitepos <- CalcAsiteFixed(
     reads_pos_length, min_read_length,
     asite_disp_length
   )
-  SnapToCodon(reads_asitepos,left,right,snapdisp)
+  
+  Counts <- SnapToCodon(reads_asitepos,left,right,snapdisp)
+  Pos <- UTR5_table(gene) %>%
+    select( Pos)
+  
+  cbind(Pos, Counts) %>% as_tibble()
+  
 }
 
-final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = dataset ,hdf5file = hdf5file ,left =left , right = right , min_read_length = 10 , asite_disp_length = data.frame(
+asite_disp_length <- readr::read_tsv(asite_disp_length_file,
+                                     comment = "#"
+)
+# not sure what the asite_disp_length_file is!
+
+
+final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[[1]], dataset = dataset , hdf5file = hdf5file ,left = left , right = right , min_read_length = 10 , asite_disp_length = data.frame(
   read_length = c(28, 29, 30),
   asite_disp = c(15, 15, 15)), snapdisp = 0L)
-
- final_A_mapped
-# [1]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-# [22]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-# [43]   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   1
-# [64]   1   0   1   1  10   4   9  15   3  89   3   0   0   0   0   0   0   0   1   0   0
-# [85] 142  20  19  13  82  15 225 409  79  51   7  28  12 174  85 225
-# > 
-Pos <-seq(from = -250, to = 49, by = 1)
+# # A tibble: 300 x 2
+# Pos Counts
+# <int>  <dbl>
+# 1  -250      0
+# 2  -249      0
+# 3  -248      0
+# 4  -247      0
+# 5  -246      0
+# 6  -245      0
+# 7  -244      0
+# 8  -243      0
+# 9  -242      0
+# 10  -241      0
+# … with 290 more rows
 
 Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   .,
@@ -281,45 +313,24 @@ Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   asite_disp_length = data.frame(
     read_length = c(28, 29, 30),
     asite_disp = c(15, 15, 15)
-  ))) %>%
-  as_tibble(.name_repair = "unique") %>%
-  set_colnames(paste(test_orfs))
+  ))) 
 
+ 
+Count_A_site_function <-function(gene, dataset, hdf5file, min_read_length = 10) {
+  map(gene, GetGeneCodonPosReads1dsnap, dataset, hdf5file )
+}    
+# Error in CalcAsiteFixed(reads_pos_length, min_read_length, asite_disp_length) : 
+#   argument "min_read_length" is missing, with no default 
 
-  # cbind(Pos)
+### in order to automate it
 
-  
-plotting_5Asite<- function(input_data) {
-  text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
-  #the actual plotting
-  plotted_UTR <- ggplot(input_data) +
-    geom_density(aes(x = Pos, y = ), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(paste("Ribosome footprint density of ", names(input_data) , sep= "")) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic() %>%
-    return()
-}
-
-tibble1 <-as_tibble(output_orfs[1], .name_repair = "unique")
- ##only now it's a tbl, before it's still a list 
-
-   # as_tibble(.name_repair = "unique") %>%
-  # set_colnames(paste(test_orfs))  %>%
-  # cbind(seq(from = -250, to = 49, by = 1))
-
-
-# tibble1 <- output_orfs[[1]]
-# A_site_and_counts <- cbind(Counts_Asite_mapped, tibble1)
-
-
-# A_site_and_counts_plot <-plotting_5Asite(A_site_and_counts)
-# comparison_plot <-plotting_5UTR(tibble1)
-# ggarrange(A_site_and_counts_plot,comparison_plot)
+# choosing_sample <- function(dataset, genes) {
+#   hd_file <- dataset
+#   hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+#   
+#   final_function_table(genes) %>%
+#     return()
+# }
 
 ############################################################################################                                               ##plotting##
 
@@ -345,7 +356,7 @@ yx<-plotting_5UTR(output_orfs[[1]])
 
 plotting_multiple <- function(input_data, gene_names) {
   purrr :: map(input_data, plotting_5UTR) %>%
-        ggarrange(plotlist = ., labels = gene_names) %>%  ##, common.legend = (maybe to establish a name)
+    ggarrange(plotlist = ., labels = gene_names) %>%  ##, common.legend = (maybe to establish a name)
     return()
   #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
@@ -358,6 +369,15 @@ plotting_multiple(output_orfs[1], test_orfs[1]) %>%
 
 ####################################################################################
 ##2 in one##
+
+choosing_sample <- function(dataset, genes) {
+hd_file <- dataset
+hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+
+final_function_table(genes) %>%
+return()
+}
+choosing_sample(WT_none, genes = test_orfs)
 
 ##WT none
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -515,7 +535,7 @@ plotted_each_barplot <- function(data, gene){
     scale_x_discrete(limits = positions)
 } 
 #WT none
-together <-all_regions_together(genes = output_orfs,gene_names = test_orfs) 
+together <-all_regions_together(genes = output_none,gene_names = test_orfs) 
 together$count <- as.numeric(together$count)
 
 plotted_each_barplot(together, "YCR012W")
@@ -523,10 +543,17 @@ plotted_barplots(together)
 
 #WT 3AT
 together_3AT <-all_regions_together(genes = output_3AT,gene_names = test_orfs) 
-together_3AT$count <- as.numeric(together$count)
+together_3AT$count <- as.numeric(together_3AT$count)
 
 plotted_each_barplot(together_3AT, "YCR012W")
 plotted_barplots(together_3AT)
+
+#WT CHX
+together_CHX <-all_regions_together(genes = output_CHX,gene_names = test_orfs) 
+together_CHX$count <- as.numeric(together_CHX$count)
+
+plotted_each_barplot(together_CHX, "YCR012W")
+plotted_barplots(together_CHX)
 
   # I don't know what to do about it, it's clearly an issue with subsetting 
 
