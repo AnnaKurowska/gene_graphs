@@ -89,7 +89,7 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x) {
   n_left5 <- Get5UTRstart(gene, x) # column to start from (5'end)
   n_right3 <- UTR5_length(gene, x) + nnt_gene # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+  # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
   #return(data_mat_5start, posn5start, posn5end)
 }
@@ -125,10 +125,9 @@ UTR5_table <- function(gene) {
                                  hdf5file,
                                  x=gff_df)
   ) %>% 
-    Reduce("+", .) 
- #  %>% # sums the list of data matrices
- #    TidyDatamatrix(startpos = -250, startlen = 10) %>%
- # return()
+    Reduce("+", .) %>% # sums the list of data matrices
+    TidyDatamatrix(startpos = -250, startlen = 10) %>%
+ return()
 
 }
 
@@ -175,7 +174,7 @@ CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
     dplyr::lag(n = asite_disp, default = 0)
 }
 
-something <- CalcAsiteFixedOneLength(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1],dataset = dataset,hdf5file = hdf5file), min_read_length = 10, read_length = 28, asite_disp = 15)
+ CalcAsiteFixedOneLength(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1],dataset = dataset,hdf5file = hdf5file), min_read_length = 10, read_length = 28, asite_disp = 15)
 # > str(something)
 # num [1:1751] 0 0 0 0 0 0 0 0 0 0 ...
 
@@ -240,29 +239,29 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 # right = CDS3_end(test_orfs[1], gff_df)
 
 ###
-GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right, 
-                                       min_read_length, 
-                                       asite_disp_length = data.frame(
-                                         read_length = c(28, 29, 30),
-                                         asite_disp = c(15, 15, 15)
-                                       ), 
-                                       snapdisp=0L) {
-  left = Get5UTRstart(gene, gff_df) 
-  right = CDS3_end(gene, gff_df)
-  
-  reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file) 
-  reads_asitepos <- CalcAsiteFixed(
-    reads_pos_length, min_read_length,
-    asite_disp_length
-  )
-  
-  Counts <- SnapToCodon(reads_asitepos,left,right,snapdisp)
-  Pos <- UTR5_table(gene) %>%
-    select( Pos)
-  
-  cbind(Pos, Counts) %>% as_tibble()
-  
-}
+# GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right, 
+#                                        min_read_length, 
+#                                        asite_disp_length = data.frame(
+#                                          read_length = c(28, 29, 30),
+#                                          asite_disp = c(15, 15, 15)
+#                                        ), 
+#                                        snapdisp=0L) {
+#   left = Get5UTRstart(gene, gff_df) 
+#   right = CDS3_end(gene, gff_df)
+#   
+#   reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file) 
+#   reads_asitepos <- CalcAsiteFixed(
+#     reads_pos_length, min_read_length,
+#     asite_disp_length
+#   )
+#   
+#   Counts <- SnapToCodon(reads_asitepos,left,right,snapdisp)
+#   Pos <- UTR5_table(gene) %>%
+#     select( Pos)
+#   
+#   cbind(Pos, Counts) %>% as_tibble()
+#   
+# }
 ###
 GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, x , left, right, 
                                        min_read_length, 
@@ -286,29 +285,6 @@ GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, x , left, right,
     TidyDatamatrix(startpos = -250, startlen = 10) %>% #the issue lies here
     select( Pos)
   cbind(Pos, Counts) %>% as_tibble()
-}
-
-TidyDatamatrix <- function(x, startpos = 1, startlen = 1) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(x) - 1)
-  # readlengths <- startlen:(startlen + nrow(x) - 1)
-  x %>%
-    set_colnames(positions) %>%
-    as_tibble() %>% 
-    gather(key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
-    group_by(Pos) %>%
-    summarise(Counts=sum(Counts))
-}
-
-GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x) {
-  data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  n_left5 <- Get5UTRstart(gene, x) # column to start from (5'end)
-  n_right3 <- UTR5_length(gene, x) + nnt_gene # column to end with (3'end) 
-  data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
-  return(data_mat_5start)
-  #return(data_mat_5start, posn5start, posn5end)
 }
 
 
