@@ -45,3 +45,5 @@ vignettes/*.pdf
 #ignore G-Sc_2014
 /G-Sc_2014/*
 
+#ignore B-Sc_2012
+/B-Sc_2012/*
