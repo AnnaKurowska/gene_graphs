@@ -31,6 +31,14 @@ dataset <- "G-Sc_2014"
 hd_file <- WT_CHX
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
+asite_disp_length_file <- "G-Sc_2014/input/asite_disp_length_yeast_standard.txt"
+
+asite_disp_length <- readr::read_tsv(asite_disp_length_file,
+                                     comment = "#"
+)
+
+
+
 #Initial set ups
 test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W", "YML065W")
 nnt_gene<- 50
@@ -84,14 +92,13 @@ UTR5_length <- function(gene, x) {
 } 
 
 # Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
-GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x) {
+GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   n_left5 <- Get5UTRstart(gene, x) # column to start from (5'end)
   n_right3 <- UTR5_length(gene, x) + nnt_gene # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+  #data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
-  #return(data_mat_5start, posn5start, posn5end)
 }
 
 # GetPosnCountOutput <- function(x){
@@ -103,14 +110,15 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x) {
 #   return(output_thing)
 # }
 
-TidyDatamatrix <- function(x, startpos = 1, startlen = 1,gene) {
+TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
   # CHECK startpos/off-by-one
   positions <- startpos:(startpos + ncol(x) - 1)
-  # readlengths <- startlen:(startlen + nrow(x) - 1)
+  readlengths <- startlen:(startlen + nrow(x) - 1)
   x %>%
     set_colnames(positions) %>%
     as_tibble() %>% 
-    gather(key = "Pos", value = "Counts", convert = FALSE) %>%
+    mutate(ReadLen = readlengths) %>%
+    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
     group_by(Pos) %>%
     summarise(Counts=sum(Counts))
@@ -123,7 +131,8 @@ UTR5_table <- function(gene) {
            GetGeneDatamatrix5UTR(gene,
                                  dataset,
                                  hdf5file,
-                                 x=gff_df)
+                                 x=gff_df,
+                                 nnt_gene = 50)
   ) %>% 
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
@@ -140,7 +149,6 @@ final_function_table <- function(genes){
 }
 
 output_orfs<-final_function_table(test_orfs) #it works just fine 
-
 
 ##meta-analysis:
 
@@ -184,10 +192,7 @@ CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
 
 ###
 CalcAsiteFixed <- function(reads_pos_length, min_read_length,
-                           asite_disp_length = data.frame(
-                             read_length = c(28, 29, 30),
-                             asite_disp = c(15, 15, 15)
-                           ),
+                           asite_disp_length,
                            colsum_out = TRUE) {
   # Calculate read A-site using a fixed displacement for fixed read lengths
   npos <- ncol(reads_pos_length)
@@ -215,7 +220,7 @@ CalcAsiteFixed <- function(reads_pos_length, min_read_length,
   }
 }
 
- CalcAsiteFixed(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file), min_read_length = 10, colsum_out = TRUE)
+ CalcAsiteFixed(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file), min_read_length, min_read_length = 10, colsum_out = TRUE)
 
 # [1]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
 # [17]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
@@ -238,65 +243,78 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 # left = Get5UTRstart(test_orfs[1], gff_df) #finds left and right value for each gene 
 # right = CDS3_end(test_orfs[1], gff_df)
 
+#potential issue: i used Get5UTRstart and CDS3_end for both GetGeneDataMatrix5UTR and SnapToCodon, which isnt exactly whats done in riboviz i think
+
 ###
-# GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right, 
-#                                        min_read_length, 
+# GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right,
+#                                        min_read_length,
 #                                        asite_disp_length = data.frame(
 #                                          read_length = c(28, 29, 30),
 #                                          asite_disp = c(15, 15, 15)
-#                                        ), 
+#                                        ),
 #                                        snapdisp=0L) {
-#   left = Get5UTRstart(gene, gff_df) 
+#   left = Get5UTRstart(gene, gff_df)
 #   right = CDS3_end(gene, gff_df)
-#   
-#   reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file) 
+# 
+#   reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file)
 #   reads_asitepos <- CalcAsiteFixed(
 #     reads_pos_length, min_read_length,
 #     asite_disp_length
 #   )
-#   
+# 
 #   Counts <- SnapToCodon(reads_asitepos,left,right,snapdisp)
 #   Pos <- UTR5_table(gene) %>%
 #     select( Pos)
-#   
+# 
 #   cbind(Pos, Counts) %>% as_tibble()
-#   
+# 
 # }
+
 ###
-GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, x , left, right, 
+GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, x , nnt_gene, 
                                        min_read_length, 
-                                       asite_disp_length = data.frame(
-                                         read_length = c(28, 29, 30),
-                                         asite_disp = c(15, 15, 15)
-                                       ), 
-                                       snapdisp=0L) {
-  left = Get5UTRstart(gene, gff_df) 
-  right = CDS3_end(gene, gff_df)
+                                       asite_disp_length, 
+                                       snapdisp = 0L) {
+ 
   # will have to call x and gff_df the same!
-  reads_pos_length <- GetGeneDatamatrix5UTR(gene, dataset, hdf5file, x)
+  reads_pos_length <- GetGeneDatamatrix5UTR(gene, dataset, hdf5file, x, nnt_gene)
   reads_asitepos <- CalcAsiteFixed(
     reads_pos_length, min_read_length,
-    asite_disp_length
-  )  
+    asite_disp_length)  
+  
+  Counts <- SnapToCodon(reads_asitepos, left = Get5UTRstart(gene, gff_df) , right = CDS3_end(gene, gff_df), snapdisp)
+  Pos <- reads_pos_length %>%
+    TidyDatamatrix(startpos = -250, startlen = 10) %>%
+    select(Pos)
 
-  Counts <- SnapToCodon(reads_asitepos, left, right, snapdisp) #  works till here for sure!
-  Pos <- tibble::as_tibble(reads_pos_length, .name_repair="minimal") %>%
-    Reduce("+", .) %>% # sums the list of data matrices
-    TidyDatamatrix(startpos = -250, startlen = 10) %>% #the issue lies here
-    select( Pos)
   cbind(Pos, Counts) %>% as_tibble()
 }
 
+TidyDatamatrix2 <- function(x, startpos = 1)  {
+  positions <- startpos:(startpos + ncol(x) - 1) 
+  x %>%
+    set_colnames(positions) 
+}  
 
-asite_disp_length <- readr::read_tsv(asite_disp_length_file,
-                                     comment = "#"
-)
-# not sure what the asite_disp_length_file is!
+TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
+  # CHECK startpos/off-by-one
+  positions <- startpos:(startpos + ncol(x) - 1)
+  readlengths <- startlen:(startlen + nrow(x) - 1)
+  x %>%
+    set_colnames(positions) %>%
+    as_tibble() %>% 
+    mutate(ReadLen = readlengths) %>%
+    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
+    group_by(Pos) %>%
+    summarise(Counts=sum(Counts))
+}
 
 
-final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[[1]], dataset, hdf5file, x = gff_df, min_read_length = 10 , asite_disp_length = data.frame(
-  read_length = c(28, 29, 30),
-  asite_disp = c(15, 15, 15)), snapdisp = 0L)
+
+
+final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[[1]], dataset, hdf5file, x = gff_df, nnt_gene = 50, min_read_length = 10 , asite_disp_length = asite_disp_length , snapdisp = 0L)
+
 # # A tibble: 300 x 2
 # Pos Counts
 # <int>  <dbl>
@@ -316,29 +334,18 @@ Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
   .,
   dataset,
   hdf5file,
-  left = left,
-  right = right,
+  gff_df,
+  nnt_gene = 50,
   min_read_length = 10,
-  asite_disp_length = data.frame(
-    read_length = c(28, 29, 30),
-    asite_disp = c(15, 15, 15)
-  ))) 
+  asite_disp_length = asite_disp_length )) 
+##It works beautifully ^^
 
-Count_A_site_function <-function(gene, dataset, hdf5file, min_read_length = 10) {
-  map(gene, GetGeneCodonPosReads1dsnap, dataset, hdf5file )
-}    
-# Error in CalcAsiteFixed(reads_pos_length, min_read_length, asite_disp_length) : 
-#   argument "min_read_length" is missing, with no default 
+A_site_mapping <- function(gene, dataset, hdf5file, nnt_gene, min_read_length, asite_disp_length, snapdisp) {
+  map(gene, GetGeneCodonPosReads1dsnap, gene, dataset, hdf5file, nnt_gene, min_read_length, asite_disp_length, snapdisp)
+}
 
-### in order to automate it
-
-# choosing_sample <- function(dataset, genes) {
-#   hd_file <- dataset
-#   hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-#   
-#   final_function_table(genes) %>%
-#     return()
-# }
+A_site_mapping(test_orfs, dataset, hdf5file, nnt_gene = 50, min_read_length = 10, asite_disp_length = asite_disp_length, snapdisp = 0L)
+# Error: Error in h5checktype(). Argument not of class H5IdComponent. 
 
 ############################################################################################                                               ##plotting##
 
