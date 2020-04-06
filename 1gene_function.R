@@ -1,9 +1,10 @@
-#### Starting with one gene: YCR012W (PGK1)
 
 ############################################################################################
                                         ##set up##
-setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
-
+# setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
+library(here)
+here()
+# "/Users/Ania/Desktop/planets" is that the issue for Mrkd?
 ##Libraries 
 
 # need this
@@ -23,12 +24,12 @@ library(grid)
 
 ###Set up:
 # WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-# WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
-WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+#WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
 
 # prepare files, opens hdf5 file connection
 dataset <- "G-Sc_2014"
-hd_file <- WT_CHX
+hd_file <- WT_3AT
 hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
 
 asite_disp_length_file <- "G-Sc_2014/input/asite_disp_length_yeast_standard.txt"
@@ -41,6 +42,8 @@ asite_disp_length <- readr::read_tsv(asite_disp_length_file,
 
 #Initial set ups
 test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W", "YML065W")
+gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
+
 nnt_gene<- 50
 startpos <-250
 startlen <- 10
@@ -56,7 +59,7 @@ readGFFAsDf <- purrr::compose(
   .dir = "forward" # functions called from left to right
 )
 
-gff_df <- readGFFAsDf(orf_gff_file) # need to run this first readGFFAsDf (below)
+gff_df <- readGFFAsDf(orf_gff_file) 
 ############################################################################################
                                     ##Functions##
 #This will be used to create a matrix from hdf5file
@@ -70,34 +73,34 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
 }
 
 # Takes value for start position of 5'UTR for matrix creation (no negative values e.g.: 1)
-Get5UTRstart <- function(gene, x) {
-  x %>% 
+Get5UTRstart <- function(gene, gffdf) {
+  gffdf %>% 
     dplyr::filter(Name == gene, type=="UTR5" ) %>% 
     dplyr::pull(start)
 }
 
 # Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
-CDS3_end <- function(gene, x) {
-  x %>% 
+CDS3_end <- function(gene, gffdf) {
+  gffdf %>% 
     dplyr::filter(Name == gene, type=="UTR5") %>% 
     dplyr::pull(end) + nnt_gene
 } 
 
 
 # Takes value for length of 5'UTR  
-UTR5_length <- function(gene, x) {
-  x %>% 
+UTR5_length <- function(gene, gffdf) {
+  gffdf %>% 
     dplyr::filter(Name == gene, type=="UTR5" ) %>% 
     dplyr::pull(width)
 } 
 
 # Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
-GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, x, nnt_gene) {
+GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  n_left5 <- Get5UTRstart(gene, x) # column to start from (5'end)
-  n_right3 <- UTR5_length(gene, x) + nnt_gene # column to end with (3'end) 
+  n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
+  n_right3 <- UTR5_length(gene, gffdf) + nnt_gene # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  #data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+  # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
 }
 
@@ -116,7 +119,7 @@ TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
   readlengths <- startlen:(startlen + nrow(x) - 1)
   x %>%
     set_colnames(positions) %>%
-    as_tibble() %>% 
+    as_tibble() %>%
     mutate(ReadLen = readlengths) %>%
     gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
     mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
@@ -124,41 +127,48 @@ TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
     summarise(Counts=sum(Counts))
 }
 
-#final function from raw data processing to data visualization
+# final function from raw data processing to data visualization
+GetGeneDatamatrix5UTR_non_A <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
+  data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
+  n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
+  n_right3 <- UTR5_length(gene, gffdf) + nnt_gene # column to end with (3'end) 
+  data_mat_5start <- data_mat_all[, n_left5 : n_right3]
+  data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+  return(data_mat_5start)
+}
+
 UTR5_table <- function(gene) {
  lapply(gene,
-         function(gene) 
-           GetGeneDatamatrix5UTR(gene,
+         function(gene)
+           GetGeneDatamatrix5UTR_non_A(gene,
                                  dataset,
                                  hdf5file,
-                                 x=gff_df,
+                                  gffdf =gff_df,
                                  nnt_gene = 50)
-  ) %>% 
+  ) %>%
     Reduce("+", .) %>% # sums the list of data matrices
     TidyDatamatrix(startpos = -250, startlen = 10) %>%
  return()
 
 }
 
-#the final function i'd use :) iteration of UTR5_table 
+# the final function i'd use :) iteration of UTR5_table
 final_function_table <- function(genes){
- table <-purrr::map(genes, UTR5_table) 
+ table <-purrr::map(genes, UTR5_table)
  names(table) <- genes
  return(table)
-  
-}
 
+}
 output_orfs<-final_function_table(test_orfs) #it works just fine 
 
 ##meta-analysis:
 
-meta_5genes <- UTR5_table(test_orfs) 
-  ##just do the plotting here 
-meta_5genes_plot <- plotting_meta_analysis(meta_5genes)
+meta_5genes <- UTR5_table(test_orfs)
+  ##just do the plotting here
 
 plotting_meta_analysis<- function(input_data) {
   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
+
   #the actual plotting
   plotted_UTR <- ggplot(input_data) +
     geom_density(aes(x=Pos, y=Counts), stat="identity") +
@@ -168,8 +178,13 @@ plotting_meta_analysis<- function(input_data) {
      ggtitle(paste0("Ribosome footprint density of all genes: WT none")) +
     # coord_cartesian(clip = "off") +
     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic()
+    theme_classic() %>%
+    return()
 }
+meta_5genes_plot <- plotting_meta_analysis(meta_5genes)
+
+
+##I should still be using these functions as they will allow me to compare the A- and non-A site mappng!
 
 #########################A site displacement slot#########################
 
@@ -182,13 +197,9 @@ CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
     dplyr::lag(n = asite_disp, default = 0)
 }
 
- CalcAsiteFixedOneLength(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1],dataset = dataset,hdf5file = hdf5file), min_read_length = 10, read_length = 28, asite_disp = 15)
+# CalcAsiteFixedOneLength(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1],dataset = dataset,hdf5file = hdf5file), min_read_length = 10, read_length = 28, asite_disp = 15)
 # > str(something)
 # num [1:1751] 0 0 0 0 0 0 0 0 0 0 ...
-
-# > something
-# [1]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [20]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
 
 ###
 CalcAsiteFixed <- function(reads_pos_length, min_read_length,
@@ -220,15 +231,7 @@ CalcAsiteFixed <- function(reads_pos_length, min_read_length,
   }
 }
 
- CalcAsiteFixed(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file), min_read_length, min_read_length = 10, colsum_out = TRUE)
-
-# [1]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [17]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [33]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [49]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-# [65]    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0
-#.....
-# [ reached getOption("max.print") -- omitted 751 entries ]
+# CalcAsiteFixed(reads_pos_length = GetGeneDatamatrix(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file), min_read_length, min_read_length = 10, colsum_out = TRUE)
 
 ###
 SnapToCodon <- function(x, left, right, snapdisp=0L) {
@@ -238,11 +241,11 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
   #   right: integer for ending position
   #   snapdisp: integer any additional displacement in the snapping
   RcppRoll::roll_suml(x[(left:right) + snapdisp], n=1L, by=1L, fill = NULL)
+  
 }  ##I changed n= and by= from 3L to 1L bc I want NT resolution 
 
 # left = Get5UTRstart(test_orfs[1], gff_df) #finds left and right value for each gene 
 # right = CDS3_end(test_orfs[1], gff_df)
-
 #potential issue: i used Get5UTRstart and CDS3_end for both GetGeneDataMatrix5UTR and SnapToCodon, which isnt exactly whats done in riboviz i think
 
 ###
@@ -270,86 +273,97 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 # 
 # }
 
+
+GetPosition <- function(x, startpos = 1)  {
+  positions <- startpos:(startpos + ncol(x) - 1) 
+  positions %>% 
+    as_tibble() %>%
+    set_colnames("Pos")
+}  
+
 ###
-GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, x , nnt_gene, 
+GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, gffdf , nnt_gene, 
                                        min_read_length, 
                                        asite_disp_length, 
                                        snapdisp = 0L) {
  
   # will have to call x and gff_df the same!
-  reads_pos_length <- GetGeneDatamatrix5UTR(gene, dataset, hdf5file, x, nnt_gene)
+  reads_pos_length <- GetGeneDatamatrix5UTR(gene, dataset, hdf5file,gffdf, nnt_gene)
   reads_asitepos <- CalcAsiteFixed(
     reads_pos_length, min_read_length,
     asite_disp_length)  
   
   Counts <- SnapToCodon(reads_asitepos, left = Get5UTRstart(gene, gff_df) , right = CDS3_end(gene, gff_df), snapdisp)
   Pos <- reads_pos_length %>%
-    TidyDatamatrix(startpos = -250, startlen = 10) %>%
-    select(Pos)
+    GetPosition(startpos = -250)
+    # TidyDatamatrix(startpos = -250, startlen = 10) %>%
+    # select(Pos)
 
   cbind(Pos, Counts) %>% as_tibble()
 }
 
-TidyDatamatrix2 <- function(x, startpos = 1)  {
-  positions <- startpos:(startpos + ncol(x) - 1) 
-  x %>%
-    set_colnames(positions) 
-}  
+#  map(test_orfs, ~GetGeneCodonPosReads1dsnap(
+#   .,
+#   dataset,
+#   hdf5file,
+#   gff_df,
+#   nnt_gene = 50,
+#   min_read_length = 10,
+#   asite_disp_length = asite_disp_length ))
+# names(Counts_Asite_mapped) <- test_orfs
 
-TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(x) - 1)
-  readlengths <- startlen:(startlen + nrow(x) - 1)
-  x %>%
-    set_colnames(positions) %>%
-    as_tibble() %>% 
-    mutate(ReadLen = readlengths) %>%
-    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
-    group_by(Pos) %>%
-    summarise(Counts=sum(Counts))
+A_mapped_genes <- function(gene, dataset, hdf5file, gffdf, min_read_length) {
+  output<- map(gene, GetGeneCodonPosReads1dsnap, dataset, hdf5file, gffdf, nnt_gene, min_read_length, asite_disp_length)
+  
+  names(output) <- gene
+  return(output)
 }
 
+A_mapped_genes(test_orfs, dataset = dataset, hdf5file = hdf5file, gffdf = gff_df, min_read_length = 10)
 
+##### META VERSION
+  #it would really require the function above to be automated 
 
+# Counts_Asite_mapped  <- map(gene_names, ~GetGeneCodonPosReads1dsnap(
+#   .,
+#   dataset,
+#   hdf5file,
+#   gff_df,
+#   nnt_gene = 50,
+#   min_read_length = 10,
+#   asite_disp_length = asite_disp_length ))
+# names(Counts_Asite_mapped) <- gene_names
+# 
+# Counts <-Counts_Asite_mapped %>%
+#   Reduce("+", .) %>%
+#   select(Counts)
+# Pos <- Counts_Asite_mapped$Q0045$Pos
+# 
+# Counts_Asite_mapped_all <-cbind(Pos, Counts) %>% as_tibble(.name_repair = "minimal")
+# 
+# plotting_5UTR(Counts_Asite_mapped_all) 
+#   %>% return()
 
-final_A_mapped <- GetGeneCodonPosReads1dsnap(gene = test_orfs[[1]], dataset, hdf5file, x = gff_df, nnt_gene = 50, min_read_length = 10 , asite_disp_length = asite_disp_length , snapdisp = 0L)
-
-# # A tibble: 300 x 2
-# Pos Counts
-# <int>  <dbl>
-# 1  -250      0
-# 2  -249      0
-# 3  -248      0
-# 4  -247      0
-# 5  -246      0
-# 6  -245      0
-# 7  -244      0
-# 8  -243      0
-# 9  -242      0
-# 10  -241      0
-# … with 290 more rows
-
-Counts_Asite_mapped  <- map(test_orfs, ~GetGeneCodonPosReads1dsnap(
-  .,
-  dataset,
-  hdf5file,
-  gff_df,
-  nnt_gene = 50,
-  min_read_length = 10,
-  asite_disp_length = asite_disp_length )) 
-##It works beautifully ^^
-
-A_site_mapping <- function(gene, dataset, hdf5file, nnt_gene, min_read_length, asite_disp_length, snapdisp) {
-  map(gene, GetGeneCodonPosReads1dsnap, gene, dataset, hdf5file, nnt_gene, min_read_length, asite_disp_length, snapdisp)
+All_genesAmapped <- function(gene, dataset, hdf5file, gffdf, min_read_length) {
+  output<- map(gene, GetGeneCodonPosReads1dsnap, dataset, hdf5file, gffdf, nnt_gene, min_read_length, asite_disp_length)
+  
+  names(output) <- gene
+  
+  Counts <- output %>%
+    Reduce("+", .) %>%
+    select(Counts)
+  Pos <- output$YCR012W$Pos
+  
+  Counts_Asite_mapped_all <-cbind(Pos, Counts) %>% as_tibble(.name_repair = "minimal") 
+  return(Counts_Asite_mapped_all)
+  
 }
 
-A_site_mapping(test_orfs, dataset, hdf5file, nnt_gene = 50, min_read_length = 10, asite_disp_length = asite_disp_length, snapdisp = 0L)
-# Error: Error in h5checktype(). Argument not of class H5IdComponent. 
+All_genesAmapped(gene = test_orfs, dataset = dataset, hdf5file = hdf5file, gffdf = gff_df, min_read_length = 10)
+
 
 ############################################################################################                                               ##plotting##
 
-#main plotting function 1gene-1 plot (iterated later on in plotting_multiple)
 plotting_5UTR<- function(input_data) {
   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
   
@@ -365,34 +379,28 @@ plotting_5UTR<- function(input_data) {
     theme_classic()
 }
 
-yx<-plotting_5UTR(output_orfs[[1]])
-
 ##multiple plots##
 
 plotting_multiple <- function(input_data, gene_names) {
   purrr :: map(input_data, plotting_5UTR) %>%
-    ggarrange(plotlist = ., labels = gene_names) %>%  ##, common.legend = (maybe to establish a name)
+    ggarrange(plotlist = ., labels = gene_names) %>%  
     return()
   #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
 }
 
-# WT none
-plotting_multiple(output_orfs[1], test_orfs[1]) %>%
-  ggsave(filename = "fig2.png")
-
-# WT CHX
-
 ####################################################################################
 ##2 in one##
 
-choosing_sample <- function(dataset, genes) {
-hd_file <- dataset
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+#this is what i'd like to achieve for the final A-site mapping function 
+# choosing_sample <- function(dataset, genes) {
+# hd_file <- dataset
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# 
+# final_function_table(genes) %>%
+# return()
+# }
 
-final_function_table(genes) %>%
-return()
-}
-choosing_sample(WT_none, genes = test_orfs)
+# choosing_sample(WT_none, genes = test_orfs)
 
 ##WT none
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -491,7 +499,7 @@ Wilcoxon_computed <- function(genes, gene_names) {
   table <-cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
     set_colnames(c("genes","-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")) %>%
     gather( key = "genes", value = "count")
-  table$count <- as.numeric(dif_value$count)
+  table$count <- as.numeric(table$count)
   
   wilcoxon_computed <- pairwise.wilcox.test(table$count, table$genes, paired = FALSE, p.adjust.method = "none")
   return(wilcoxon_computed)
@@ -619,7 +627,7 @@ xxxx <-sliding_windows_multiple(output_orfs, test_orfs)
 
 ##########################################################################################
                                      ######FASTQ######
-fq.file <- "/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
+fq.file <- "/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/Ania_Riboviz/G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
 
 fastq_sequence <- Fastqfile(fq.file)
   #not entirely what i want, a bit confusing: 
