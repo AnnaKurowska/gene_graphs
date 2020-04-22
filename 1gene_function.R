@@ -87,7 +87,7 @@ Get5UTRstart <- function(gene, gffdf) {
 
 Get5UTRstart <- function(gene, gffdf) {
   gffdf %>%
-    filter(str_detect(seqnames, gene), type=="five_prime_UTR" )  %>%
+    dplyr::filter(str_detect(seqnames, gene), type=="five_prime_UTR" )  %>%
     dplyr::pull(start)
 }
 
@@ -100,7 +100,7 @@ CDS3_end <- function(gene, gffdf) {
 
 CDS3_end <- function(gene, gffdf) {
   gffdf %>%
-    filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
+    dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
     dplyr::pull(end) + nnt_gene
 }
 
@@ -123,11 +123,13 @@ UTR5_length <- function(gene, gffdf) {
 GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
-  n_right3 <- UTR5_length(gene, gffdf) + nnt_gene # column to end with (3'end) 
+  n_right3 <-CDS3_end(gene, gffdf) # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
   # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
 }
+
+GetGeneDatamatrix5UTR(exemplar_gene, dataset = dataset_G2014, hdf5file_none, gff_df, nnt_gene = nnt_gene)
 
 # GetPosnCountOutput <- function(x){
 #   output_thing <- x %>% 
@@ -143,13 +145,13 @@ TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
   positions <- startpos:(startpos + ncol(x) - 1)
   readlengths <- startlen:(startlen + nrow(x) - 1)
   x %>%
-    set_colnames(positions) %>%
-    as_tibble() %>%
-    mutate(ReadLen = readlengths) %>%
-    gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
-    group_by(Pos) %>%
-    summarise(Counts=sum(Counts))
+    magrittr::set_colnames(positions) %>%
+    tibble::as_tibble() %>%
+    dplyr::mutate(ReadLen = readlengths) %>%
+    tidyr::gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+    dplyr::mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
+    dplyr::group_by(Pos) %>%
+    dplyr::summarise(Counts=sum(Counts))
 }
 
 # final function from raw data processing to data visualization
@@ -268,12 +270,9 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
   #   snapdisp: integer any additional displacement in the snapping
   RcppRoll::roll_suml(x[(left:right) + snapdisp], n=1L, by=1L, fill = NULL)
   
-}  ##I changed n= and by= from 3L to 1L bc I want NT resolution 
+}  
 
-# left = Get5UTRstart(test_orfs[1], gff_df) #finds left and right value for each gene 
-# right = CDS3_end(test_orfs[1], gff_df)
-#potential issue: i used Get5UTRstart and CDS3_end for both GetGeneDataMatrix5UTR and SnapToCodon, which isnt exactly whats done in riboviz i think
-
+#
 ###
 # GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, left, right,
 #                                        min_read_length,
@@ -312,8 +311,8 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 GetPosition <- function(x, startpos = 1)  {
   positions <- startpos:(startpos + ncol(x) - 1) 
   positions %>% 
-    as_tibble() %>%
-    set_colnames("Pos")
+    tibble::as_tibble() %>%
+    magrittr::set_colnames("Pos")
 }  
 
 ###
@@ -341,10 +340,11 @@ GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, gffdf,
   Pos <- reads_pos_length %>%
     GetPosition(startpos = -250)
   
-  cbind(Pos, Counts) %>% as_tibble()
+  base::cbind(Pos, Counts) %>% 
+    tibble::as_tibble()
 }
 
-GetGeneCodonPosReads1dsnap(gene = test_orfs[2], dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, nnt_gene = nnt_gene, min_read_length = 10,asite_disp_length = asite_disp_length)
+something <-GetGeneCodonPosReads1dsnap(gene = test_orfs[2], dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, nnt_gene = nnt_gene, min_read_length = 10, asite_disp_length = asite_disp_length)
 
 
 #  map(test_orfs, ~GetGeneCodonPosReads1dsnap(
@@ -363,7 +363,7 @@ A_mapped_genes <- function(gene,
                            gffdf,
                            min_read_length) {
   
-  output<- map(gene,
+  output<- purrr::map(gene,
                GetGeneCodonPosReads1dsnap,
                dataset,
                hdf5file,
@@ -382,6 +382,8 @@ A_mapped_genes <- function(gene,
 }
 
 mapped_A_genes <- A_mapped_genes(test_orfs, dataset = dataset, hdf5file = hdf5file_3AT, gffdf = gff_df, min_read_length = 10)
+
+
 #okay calkowicie dziala kiedy uzywam normalnego gffdf
 
 ##amen to that!!! generating a plot of UTR to AUG efficiency 
@@ -389,16 +391,16 @@ mapped_A_genes <- A_mapped_genes(test_orfs, dataset = dataset, hdf5file = hdf5fi
 CanVsNon <- function(dataset) {
   
   UTR <- bind_rows(dataset, .id = "Gene") %>%
-    filter( Pos >= -250, Pos < 0) %>%
-    group_by(Gene) %>%
-    summarise(Counts_UTR5 = sum(Counts))
+    dplyr::filter( Pos >= -250, Pos < 0) %>%
+    dplyr::group_by(Gene) %>%
+    dplyr::summarise(Counts_UTR5 = sum(Counts))
   
   AUG <- bind_rows(dataset, .id = "Gene") %>%
-    filter( Pos >= 0, Pos < 100) %>%
-    group_by(Gene) %>%
-    summarise(Counts_AUG = sum(Counts))
+    dplyr::filter( Pos >= 0, Pos < 100) %>%
+    dplyr::group_by(Gene) %>%
+    dplyr::summarise(Counts_AUG = sum(Counts))
   
-  UTR_AUG <-full_join(UTR, AUG, by = "Gene") 
+  UTR_AUG <-dplyr::full_join(UTR, AUG, by = "Gene") 
   # i might have to have an if here bc otherwise it will be nasty! szczegolnie   kiedy AUG jest 0, nie chce tego obliczac
   # if (UTR_AUG$Counts_AUG 
   # mutate(UTR_AUG, Efficiency = Counts_UTR5/Counts_AUG*100) 
@@ -466,7 +468,7 @@ All_genesAmapped <- function(gene,
                              gffdf,
                              min_read_length) {
   
-  output<- map(gene,
+  output<- purrr::map(gene,
                GetGeneCodonPosReads1dsnap,
                dataset,
                hdf5file,
@@ -478,22 +480,20 @@ All_genesAmapped <- function(gene,
   names(output) <- gene
   
   Counts <- output %>%
-    Reduce("+", .) %>%
-    select(Counts)
+    purrr::Reduce("+", .) %>%
+    dplyr::select(Counts)
   
   Pos <- output$YCR012W$Pos
   
-  Counts_Asite_mapped_all <-cbind(Pos, Counts) %>% 
-    as_tibble(.name_repair = "minimal") 
+  Counts_Asite_mapped_all <-base::cbind(Pos, Counts) %>% 
+    tibble::as_tibble(.name_repair = "minimal") 
   
   return(Counts_Asite_mapped_all)
   
 }
 
 
-
-
-#plotting 3 conditions at the same time
+###############plotting 3 conditions at the same time
 none <- All_genesAmapped(gene = test_orfs, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
 
 CHX <- All_genesAmapped(gene = test_orfs, dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10)
@@ -512,7 +512,7 @@ plotting_5UTR<- function(input_data) {
   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
   
   #the actual plotting
-  plotted_UTR <- ggplot(input_data) +
+  plotted_UTR <- ggplot2::ggplot(input_data) +
     geom_density(aes(x=Pos, y=Counts), stat="identity") +
     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
@@ -566,7 +566,7 @@ output_CHX <-final_function_table(test_orfs)
 ######
 
 two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
-  ggplot(sample1,aes(x=Pos, y=Counts)) +
+  ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
     geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
     geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
@@ -588,9 +588,9 @@ WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 
 #creating adjusted regions to sum read counts 
 sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
   datatibble %>%
-    filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-    summarise(sum_read_counts_uAUG=sum(Counts)) %>%
-    pull
+    dplyr::filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+    dplyr::summarise(sum_read_counts_uAUG=sum(Counts)) %>%
+    dplyr::pull
 }
 
 #for multiple genes 
@@ -611,14 +611,14 @@ CDS_5UTR <- function(genes, gene_names) {
   region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
   region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 5)
   
-  cbind(table_genes, region1, region2) %>% as_tibble() %>%
+  base::cbind(table_genes, region1, region2) %>% as_tibble() %>%
     set_colnames(c("genes","5'UTR", "AUG")) %>%
     #
     return()
 }
 
 together <-CDS_5UTR(genes = mapped_A_genes,gene_names = test_orfs) %>%
-  gather( key = "region", value = "count", -genes) 
+  tidyr::gather( key = "region", value = "count", -genes) 
 together$count <- as.numeric(together$count)
 
 
@@ -677,9 +677,9 @@ all_regions_together <- function(genes, gene_names) {
   
   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
   
-  cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
-    set_colnames(c("genes","5'UTR", "-AUG", "-15:-0", "-60:0", "-120:-60")) %>%
-    gather( key = "region", value = "count", -genes) %>%
+  base::cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
+    magrittr::set_colnames(c("genes","5'UTR", "-AUG", "-15:-0", "-60:0", "-120:-60")) %>%
+    tidyr::gather( key = "region", value = "count", -genes) %>%
     return()
 }
 
@@ -801,7 +801,7 @@ sliding_windows <- function(tibble) {
 
 sliding_windows_multiple <- function(tibble, genes){
   names(tibble) <- genes
-  joined <-map(tibble, sliding_windows ) 
+  joined <-purrr::map(tibble, sliding_windows ) 
   col_names <- seq(from = -250, to = 20, by = 30)
   
   bind_rows(joined) %>%
@@ -822,7 +822,7 @@ GetCountsDifferentConditions <- function(gene,
                              gffdf,
                              min_read_length) {
   
-  output<- map(gene,
+  output<- purrr::map(gene,
                GetGeneCodonPosReads1dsnap,
                dataset,
                hdf5file,
@@ -832,8 +832,8 @@ GetCountsDifferentConditions <- function(gene,
                asite_disp_length)
   
   Counts <- output %>%
-    Reduce("+", .) %>%
-    select(Counts) 
+    purrr::Reduce("+", .) %>%
+    dplyr::select(Counts) 
     return(Counts)
 }
 
@@ -848,11 +848,11 @@ different_conditions <- function(genes, dataset, hdf5file1, hdf5file2, hdf5file3
   
   UTR5_c3 <- GetCountsDifferentConditions(genes, dataset, hdf5file3, gffdf, min_read_length)
 
-  tablex <- cbind(UTR5_c1, UTR5_c2, UTR5_c3) %>%
-    colSums() %>% 
-    as_tibble(.name_repair = "unique") %>%
-    cbind(paste(c(hdf5file1, hdf5file2, hdf5file3))) %>%
-    set_colnames(c("Count", "Condition")) %>%
+  tablex <- base::cbind(UTR5_c1, UTR5_c2, UTR5_c3) %>%
+    base::colSums() %>% 
+    tibble::as_tibble(.name_repair = "unique") %>%
+    base::cbind(paste(c(hdf5file1, hdf5file2, hdf5file3))) %>%
+    magrittr:set_colnames(c("Count", "Condition")) %>%
   return()
     
 }
