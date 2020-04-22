@@ -17,6 +17,7 @@ library(ggplot2)
 library(ggpubr)
 library(tibble)
 library(grid)
+library(stringr)
 
 #set up for Guydosh
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -42,8 +43,9 @@ asite_disp_length <- readr::read_tsv(asite_disp_length_file,
 
 
 #Initial set ups
+dataset <- "G-Sc_2014"
 test_orfs <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W", "YML065W")
-gene_names <- rhdf5::h5ls(hdf5file, recursive = 1)$name
+gene_names <- rhdf5::h5ls(hdf5file_none, recursive = 1)$name
 
 nnt_gene<- 50
 startpos <-250
@@ -51,6 +53,7 @@ startlen <- 10
 temporary_length <- 20 #for zooming in bit
 min_read_count <- 10
 orf_gff_file <- "G-Sc_2014/input/yeast_CDS_w_250utrs.gff3"
+Edward_gff <- "yeastutrgff/out/transcriptcentric_abundant_full-ORF_ypd_plus_other_fixed_UTR_length_transcripts.gff"
 
 #Function to create a gff table  
 readGFFAsDf <- purrr::compose(
@@ -61,6 +64,8 @@ readGFFAsDf <- purrr::compose(
 )
 
 gff_df <- readGFFAsDf(orf_gff_file) 
+gff_Edward <- readGFFAsDf(Edward_gff) 
+
 ############################################################################################
                                     ##Functions##
 #This will be used to create a matrix from hdf5file
@@ -80,6 +85,12 @@ Get5UTRstart <- function(gene, gffdf) {
     dplyr::pull(start)
 }
 
+Get5UTRstart <- function(gene, gffdf) {
+  gffdf %>%
+    filter(str_detect(seqnames, gene), type=="five_prime_UTR" )  %>%
+    dplyr::pull(start)
+}
+
 # Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
 CDS3_end <- function(gene, gffdf) {
   gffdf %>% 
@@ -87,6 +98,11 @@ CDS3_end <- function(gene, gffdf) {
     dplyr::pull(end) + nnt_gene
 } 
 
+CDS3_end <- function(gene, gffdf) {
+  gffdf %>%
+    filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
+    dplyr::pull(end) + nnt_gene
+}
 
 # Takes value for length of 5'UTR  
 UTR5_length <- function(gene, gffdf) {
@@ -94,6 +110,14 @@ UTR5_length <- function(gene, gffdf) {
     dplyr::filter(Name == gene, type=="UTR5" ) %>% 
     dplyr::pull(width)
 } 
+
+
+UTR5_length <- function(gene, gffdf) {
+  gffdf %>%
+    dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
+    dplyr::pull(width)
+}
+
 
 # Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
 GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
@@ -275,6 +299,15 @@ SnapToCodon <- function(x, left, right, snapdisp=0L) {
 # 
 # }
 
+### oh noooo, that was suppsed to be changed!
+# GetPosition <- function(x, startpos, endposition)  {
+#   posStart <- (startpos - endposition)
+#   
+#   positions <- posStart:(posStart + ncol(x) - 1) 
+#   positions %>% 
+#     tibble::enframe(name = NULL) %>%
+#     set_colnames("Pos")
+# }  
 
 GetPosition <- function(x, startpos = 1)  {
   positions <- startpos:(startpos + ncol(x) - 1) 
@@ -284,37 +317,35 @@ GetPosition <- function(x, startpos = 1)  {
 }  
 
 ###
-GetGeneCodonPosReads1dsnap <- function(gene,
-                                       dataset,
-                                       hdf5file,
-                                       gffdf,
-                                       nnt_gene, 
-                                       min_read_length, 
-                                       asite_disp_length, 
-                                       snapdisp = 0L) {
+GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, gffdf,
+        nnt_gene, min_read_length, asite_disp_length,  snapdisp = 0L) {
+  
+  left  = Get5UTRstart(gene, gffdf)
+  right = CDS3_end(gene, gffdf)
+  # end = UTR5_length(gene, gffdf)
   
   # will have to call x and gff_df the same!
-  reads_pos_length <- GetGeneDatamatrix5UTR(gene,
-                                            dataset,
-                                            hdf5file,
-                                            gffdf,
-                                            nnt_gene)
-  #   reads_pos_length <- GetGeneDatamatrix(gene, dataset, hdf5file) ogromny błąd, chyba!
+  reads_pos_length <- GetGeneDatamatrix5UTR(gene, dataset,
+                                  hdf5file, gffdf,nnt_gene)
+
   
   reads_asitepos <- CalcAsiteFixed(reads_pos_length,
                                    min_read_length,
                                    asite_disp_length)  
   
   Counts <- SnapToCodon(reads_asitepos,
-                        left = Get5UTRstart(gene, gffdf),
-                        right = CDS3_end(gene, gffdf),
-                        snapdisp) #so this doesn't seem to be that useful, is that because of the left and right values??
+                        left = left,
+                        right = right,
+                        snapdisp) 
   
   Pos <- reads_pos_length %>%
     GetPosition(startpos = -250)
   
   cbind(Pos, Counts) %>% as_tibble()
 }
+
+GetGeneCodonPosReads1dsnap(gene = test_orfs[2], dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, nnt_gene = nnt_gene, min_read_length = 10,asite_disp_length = asite_disp_length)
+
 
 #  map(test_orfs, ~GetGeneCodonPosReads1dsnap(
 #   .,
@@ -342,11 +373,57 @@ A_mapped_genes <- function(gene,
                asite_disp_length)
   
   names(output) <- gene
+  
+  # filter(.data = output, Pos >= -250, Pos < 0) 
+  # group_by(Pos)%>%
+  #   summarise(sum_read_counts_uAUG=sum(Counts))
+  # 
   return(output)
 }
 
+mapped_A_genes <- A_mapped_genes(test_orfs, dataset = dataset, hdf5file = hdf5file_3AT, gffdf = gff_df, min_read_length = 10)
+#okay calkowicie dziala kiedy uzywam normalnego gffdf
 
-mapped_A_genes <- A_mapped_genes(test_orfs, dataset = dataset_Brar, hdf5file = hdf5file_PRE1, gffdf = gff_df, min_read_length = 10)
+##amen to that!!! generating a plot of UTR to AUG efficiency 
+
+CanVsNon <- function(dataset) {
+  
+  UTR <- bind_rows(dataset, .id = "Gene") %>%
+    filter( Pos >= -250, Pos < 0) %>%
+    group_by(Gene) %>%
+    summarise(Counts_UTR5 = sum(Counts))
+  
+  AUG <- bind_rows(dataset, .id = "Gene") %>%
+    filter( Pos >= 0, Pos < 100) %>%
+    group_by(Gene) %>%
+    summarise(Counts_AUG = sum(Counts))
+  
+  UTR_AUG <-full_join(UTR, AUG, by = "Gene") 
+  # i might have to have an if here bc otherwise it will be nasty! szczegolnie   kiedy AUG jest 0, nie chce tego obliczac
+  # if (UTR_AUG$Counts_AUG 
+  # mutate(UTR_AUG, Efficiency = Counts_UTR5/Counts_AUG*100) 
+  
+}
+
+abc <-CanVsNon(mapped_A_genes)
+
+
+map_if(abc$Counts_AUG,) ### od tego moge jutro zaczac, chce miec if and else statement ktory bedzie dzialal na kazdym row. If AUG > UTR then UTR/AUG*100, if AUG < UTR then AUG=x
+
+map(abc,if(abc$Counts_AUG > abc$Counts_UTR5) {
+  mutate(abc, Efficiency = abc$Counts_AUG)
+}
+
+all_genes <- A_mapped_genes(gene_names, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
+
+all_genes_plot <- CanVsNon(all_genes) 
+
+###a scatter plot showing the UTR/AUG ratio
+ggplot(all_genes_plot, aes(x = Counts_AUG, y = Counts_UTR5)) +
+  geom_point() +
+  scale_y_continuous(expand = c(0,0)) 
+  
+
 
 
 # 
@@ -412,6 +489,8 @@ All_genesAmapped <- function(gene,
   return(Counts_Asite_mapped_all)
   
 }
+
+
 
 
 #plotting 3 conditions at the same time
