@@ -274,7 +274,7 @@ something <-GetGeneCodonPosReads1dsnap(gene = "YGR037C", dataset = dataset_Brar,
 something_plot <-plotting_5UTR(something)
 
 
-############################## quantitative comparisons in 5UTRs between conditions
+################ quantitative comparisons in 5UTRs between conditions############
 
 PRE_ENTRY_1_sev_5UTR
 # A tibble: 17 x 3
@@ -338,7 +338,11 @@ ggsave("5UTR_notAmapped_CHX", device = "jpg")
 meta_5genes_plot_3AT <- plotting_meta_analysis(meta_5genes_3AT)
 ggsave("5UTR_notAmapped_3AT", device = "jpg")
 
-#####A-site mapped:
+
+
+###################################G-Sc_2014#######################################
+
+#####1) A-site mapped:
 WT_none <- All_genesAmapped(gene = genes, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
 
 none_plot <- plotting_5UTR_with_title(WT_none)
@@ -355,7 +359,6 @@ AT3_plot <- plotting_5UTR_with_title(WT_3AT)
 ggsave("A-site mapped 3AT", device = "jpg")
 
 
-##### mapping for all genes
 ###############plotting 3 conditions at the same time
 none <- All_genesAmapped(gene = gene_names, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
 
@@ -389,5 +392,54 @@ something_3_plot <- plotting_5UTR(something_3AT)
 
 ggarrange(something_n_plot,something_C_plot,something_3_plot, labels = c("None", "CHX", "AT3"), ncol = 1, nrow = 3)
 ggsave("YEL009C 3 conditions", device = "jpg")
+
+## none
+NONE_sev <- A_mapped_genes(genes, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
+
+
+NONE_sev_5UTR <- CanVsNon(NONE_sev)
+
+NONE_sev_5UTR_scatter <- ggplot(NONE_sev_5UTR, aes(x = Counts_AUG, y = Counts_UTR5)) +
+  geom_point() + 
+  geom_text(aes(label = Gene))
+ggsave("NONE_sev_5UTR_scatter", device = "jpg")
+
+NONE_regions <- all_regions_together(NONE_sev, gene_names = genes)
+
+
+## CHX
+CHX_sev <- A_mapped_genes(genes, dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10)
+
+CHX_sev_5UTR <- CanVsNon(CHX_sev)
+
+CHX_sev_5UTR_scatter <- ggplot(CHX_sev_5UTR, aes(x = Counts_AUG, y = Counts_UTR5)) +
+  geom_point() + 
+  geom_text(aes(label = Gene))
+ggsave("CHX_sev_5UTR_scatter", device = "jpg")
+
+
+CHX_regions <- all_regions_together(CHX_sev, gene_names = genes)
+
+## 3AT
+AT3_sev <- A_mapped_genes(genes, dataset = dataset, hdf5file = hdf5file_3AT, gffdf = gff_df, min_read_length = 10)
+
+AT3_sev_5UTR <- CanVsNon(AT3_sev)
+
+AT3_sev_5UTR_scatter <- ggplot(AT3_sev_5UTR, aes(x = Counts_AUG, y = Counts_UTR5)) +
+  geom_point() + 
+  geom_text(aes(label = Gene))
+ggsave("AT3_sev_5UTR_scatter", device = "jpg")
+               
+AT3_regions <- all_regions_together(AT3_sev, gene_names = genes)
+
+###### comparisons
+
+compared_Guydosh <- UTR5_3_conditions_all(NONE_sev_5UTR, CHX_sev_5UTR, AT3_sev_5UTR)
+ggsave("compared_Guydosh", device = "jpg")
+#sprawdzone ze kolejosc jest w porzadku 
+
+### 5UTR comparison for one gene genes (with META_I_1_sev_5UTR result)
+compared_UTR_Guydosh_YML065WC <- compared_UTR_single(NONE_sev_5UTR, CHX_sev_5UTR, AT3_sev_5UTR, "YML065W") 
+ggsave("compared_UTR_YML065WC", device = "jpg")
 
 
