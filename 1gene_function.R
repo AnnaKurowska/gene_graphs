@@ -123,7 +123,7 @@ UTR5_length <- function(gene, gffdf) {
 GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
-  n_right3 <-CDS3_end(gene, gffdf) # column to end with (3'end) 
+  n_right3 <-CDS3_end(gene, gffdf)  # column to end with (3'end) 
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
   # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
@@ -327,7 +327,7 @@ GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, gffdf,
         nnt_gene, min_read_length, asite_disp_length,  snapdisp = 0L) {
   
   left  = Get5UTRstart(gene, gffdf)
-  right = CDS3_end(gene, gffdf)
+  right = CDS3_end(gene, gffdf) 
   # end = UTR5_length(gene, gffdf)
   
   # will have to call x and gff_df the same!
@@ -351,7 +351,6 @@ GetGeneCodonPosReads1dsnap <- function(gene, dataset, hdf5file, gffdf,
     tibble::as_tibble()
 }
 
-something <-GetGeneCodonPosReads1dsnap(gene = test_orfs[1], dataset = dataset, hdf5file = hdf5file_CHX, gffdf = gff_df, nnt_gene = nnt_gene, min_read_length = 10, asite_disp_length = asite_disp_length)
 
 
 #  map(test_orfs, ~GetGeneCodonPosReads1dsnap(
@@ -485,7 +484,7 @@ plotting_5UTR<- function(input_data) {
   #the actual plotting
   plotted_UTR <- ggplot2::ggplot(input_data) +
     geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_x_continuous(limits = c(-250, 50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
     labs( x = "Position") +
     # ggtitle(paste0("Ribosome footprint density of ", input_data)) +
@@ -672,7 +671,7 @@ all_regions_together <- function(genes, gene_names) {
   base::cbind(table_genes, region1, region2, region3, region4, region5) %>%    
     as_tibble() %>%
     magrittr::set_colnames(c("genes","5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")) %>%
-     tidyr::gather( key = "region", value = "count", -genes) %>%
+      tidyr::gather( key = "region", value = "count", -genes) %>%
     return()
 }
 
@@ -869,15 +868,15 @@ UTR5_3_conditions_all <-function(condition1_UTR, condition2_UTR, condition3_UTR)
   condition2_UTR <- sum(condition2_UTR$Counts_UTR5)
   condition3_UTR <- sum(condition3_UTR$Counts_UTR5) 
   
-  Condition <- c("META_I_1", "META_II_1", "PRE_ENTRY_1")
+  Condition <- c("WT NONE", "WT CHX", "WT 3AT")
   for_plot_UTR <- rbind(condition1_UTR, condition2_UTR, condition3_UTR) %>%
     as_tibble %>%
     set_colnames("UTR5") %>%
     cbind(Condition) 
   
   plot_UTR <-ggplot(for_plot_UTR) +
-    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity", ) +
-    scale_x_discrete(labels=c("PRE_ENTRY_1","META_I_1", "META_II_1")) +
+    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
+    # scale_x_discrete(labels=c("WT_3AT","WT_CHX", "WT_NONE")) +
     scale_y_continuous(expand = c(0,0)) +
     theme_classic() +
     labs(x= "Condition", y = "Ribosome footprint 5'UTR")
@@ -902,7 +901,7 @@ compared_UTR_single<-function(condition1, condition2, condition3, gene){
   
   UTR3 <-search_for_5UTR(condition3, gene)
   
-  Condition <- c("META_I_1", "META_II_1", "PRE_ENTRY_1")
+  Condition <- c("WT NONE", "WT CHX", "WT 3AT")
   
   for_plot <- rbind(UTR1,UTR2,UTR3) %>%
     set_colnames("UTR5") %>%
@@ -911,8 +910,8 @@ compared_UTR_single<-function(condition1, condition2, condition3, gene){
   for_plot$UTR5 <-as.numeric(for_plot$UTR5)
   
   plot_UTR <-ggplot(for_plot) +
-    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity", ) +
-    scale_x_discrete(labels=c("META_I_1", "META_II_1", "PRE_ENTRY_1")) +
+    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
+    # scale_x_discrete(labels=c("META_I_1", "META_II_1", "PRE_ENTRY_1")) +
     scale_y_continuous(expand = c(0,0)) +
     theme_classic() +
     labs(x= "Condition", y = "Ribosome footprint 5'UTR") +
