@@ -19,6 +19,7 @@ library(tibble)
 library(grid)
 library(stringr)
 library(ape)
+library(ggrepel)
 
 #set up for Guydosh
 WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
@@ -85,11 +86,11 @@ Get5UTRstart <- function(gene, gffdf) {
     dplyr::pull(start)
 }
 
-Get5UTRstart <- function(gene, gffdf) {
-  gffdf %>%
-    dplyr::filter(str_detect(seqnames, gene), type=="five_prime_UTR" )  %>%
-    dplyr::pull(start)
-}
+# Get5UTRstart <- function(gene, gffdf) {
+#   gffdf %>%
+#     dplyr::filter(str_detect(seqnames, gene), type=="five_prime_UTR" )  %>%
+#     dplyr::pull(start)
+# }
 
 # Takes value for 3' end of the table (includes whole 5'UTR +50 nt of CDS)
 CDS3_end <- function(gene, gffdf) {
@@ -98,11 +99,11 @@ CDS3_end <- function(gene, gffdf) {
     dplyr::pull(end) + nnt_gene
 } 
 
-CDS3_end <- function(gene, gffdf) {
-  gffdf %>%
-    dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
-    dplyr::pull(end) + nnt_gene
-}
+# CDS3_end <- function(gene, gffdf) {
+#   gffdf %>%
+#     dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
+#     dplyr::pull(end) + nnt_gene
+# }
 
 # Takes value for length of 5'UTR  
 UTR5_length <- function(gene, gffdf) {
@@ -112,11 +113,11 @@ UTR5_length <- function(gene, gffdf) {
 } 
 
 
-UTR5_length <- function(gene, gffdf) {
-  gffdf %>%
-    dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
-    dplyr::pull(width)
-}
+# UTR5_length <- function(gene, gffdf) {
+#   gffdf %>%
+#     dplyr::filter(str_detect(seqnames, gene), type == "five_prime_UTR" ) %>%
+#     dplyr::pull(width)
+# }
 
 
 # Creates a matrix with number of columns that start at 5' UTR and finish at 50'th nt of the CDS
@@ -129,7 +130,7 @@ GetGeneDatamatrix5UTR <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   return(data_mat_5start)
 }
 
-GetGeneDatamatrix5UTR(test_orfs[1], dataset = dataset, hdf5file_none, gff_df, nnt_gene = nnt_gene)
+# GetGeneDatamatrix5UTR(test_orfs[1], dataset = dataset, hdf5file_none, gff_df, nnt_gene = nnt_gene)
 
 # GetPosnCountOutput <- function(x){
 #   output_thing <- x %>% 
@@ -140,86 +141,86 @@ GetGeneDatamatrix5UTR(test_orfs[1], dataset = dataset, hdf5file_none, gff_df, nn
 #   return(output_thing)
 # }
 
-TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
-  # CHECK startpos/off-by-one
-  positions <- startpos:(startpos + ncol(x) - 1)
-  readlengths <- startlen:(startlen + nrow(x) - 1)
-  x %>%
-    magrittr::set_colnames(positions) %>%
-    tibble::as_tibble() %>%
-    dplyr::mutate(ReadLen = readlengths) %>%
-    tidyr::gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
-    dplyr::mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
-    dplyr::group_by(Pos) %>%
-    dplyr::summarise(Counts=sum(Counts))
-}
+# TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
+#   # CHECK startpos/off-by-one
+#   positions <- startpos:(startpos + ncol(x) - 1)
+#   readlengths <- startlen:(startlen + nrow(x) - 1)
+#   x %>%
+#     magrittr::set_colnames(positions) %>%
+#     tibble::as_tibble() %>%
+#     dplyr::mutate(ReadLen = readlengths) %>%
+#     tidyr::gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
+#     dplyr::mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
+#     dplyr::group_by(Pos) %>%
+#     dplyr::summarise(Counts=sum(Counts))
+# }
 
 # final function from raw data processing to data visualization
-GetGeneDatamatrix5UTR_non_A <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
-  data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
-  n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
-  n_right3 <- UTR5_length(gene, gffdf) + nnt_gene # column to end with (3'end) 
-  data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
-  return(data_mat_5start)
-}
+# GetGeneDatamatrix5UTR_non_A <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
+#   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
+#   n_left5 <- Get5UTRstart(gene, gffdf) # column to start from (5'end)
+#   n_right3 <- UTR5_length(gene, gffdf) + nnt_gene # column to end with (3'end) 
+#   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
+#   data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+#   return(data_mat_5start)
+# }
 
-UTR5_table <- function(gene) {
- lapply(gene,
-         function(gene)
-           GetGeneDatamatrix5UTR_non_A(gene,
-                                 dataset,
-                                 hdf5file,
-                                  gffdf =gff_df,
-                                 nnt_gene = 50)
-  ) %>%
-    Reduce("+", .) %>% # sums the list of data matrices
-    TidyDatamatrix(startpos = -250, startlen = 10) %>%
- return()
-
-}
-
-abc2 <- UTR5_table(test_orfs[2])
-
-# the final function i'd use :) iteration of UTR5_table
-final_function_table <- function(genes){
- table <-purrr::map(genes, UTR5_table)
- names(table) <- genes
- return(table)
-
-}
-output_orfs<-final_function_table(test_orfs) #it works just fine 
-
-##meta-analysis:
-
-meta_5genes_none <- UTR5_table(genes)
-  ##just do the plotting here
-
-meta_5genes_CHX <- UTR5_table(genes)
-
-plotting_meta_analysis<- function(input_data) {
-  # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-
-  #the actual plotting
-  plotted_UTR <- ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-     ggtitle(paste0("Ribosome footprint density of all genes: WT CHX")) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic() %>%
-    return()
-}
-#for WT_none
-meta_5genes_plot_none <- plotting_meta_analysis(meta_5genes_none)
-ggsave("5UTR_notAmapped", device = "jpg")
-
-#for WT_CHX
-meta_5genes_plot_CHX <- plotting_meta_analysis(meta_5genes_CHX)
-ggsave("5UTR_notAmapped_CHX", device = "jpg")
-##I should still be using these functions as they will allow me to compare the A- and non-A site mappng!
+# UTR5_table <- function(gene) {
+#  lapply(gene,
+#          function(gene)
+#            GetGeneDatamatrix5UTR_non_A(gene,
+#                                  dataset,
+#                                  hdf5file,
+#                                   gffdf =gff_df,
+#                                  nnt_gene = 50)
+#   ) %>%
+#     Reduce("+", .) %>% # sums the list of data matrices
+#     TidyDatamatrix(startpos = -250, startlen = 10) %>%
+#  return()
+# 
+# }
+# 
+# abc2 <- UTR5_table(test_orfs[2])
+# 
+# # the final function i'd use :) iteration of UTR5_table
+# final_function_table <- function(genes){
+#  table <-purrr::map(genes, UTR5_table)
+#  names(table) <- genes
+#  return(table)
+# 
+# }
+# output_orfs<-final_function_table(test_orfs) #it works just fine 
+# 
+# ##meta-analysis:
+# 
+# meta_5genes_none <- UTR5_table(genes)
+#   ##just do the plotting here
+# 
+# meta_5genes_CHX <- UTR5_table(genes)
+# 
+# plotting_meta_analysis<- function(input_data) {
+#   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+# 
+#   #the actual plotting
+#   plotted_UTR <- ggplot(input_data) +
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#      ggtitle(paste0("Ribosome footprint density of all genes: WT CHX")) +
+#     # coord_cartesian(clip = "off") +
+#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+#     theme_classic() %>%
+#     return()
+# }
+# #for WT_none
+# meta_5genes_plot_none <- plotting_meta_analysis(meta_5genes_none)
+# ggsave("5UTR_notAmapped", device = "jpg")
+# 
+# #for WT_CHX
+# meta_5genes_plot_CHX <- plotting_meta_analysis(meta_5genes_CHX)
+# ggsave("5UTR_notAmapped_CHX", device = "jpg")
+# ##I should still be using these functions as they will allow me to compare the A- and non-A site mappng!
 
 #########################A site displacement slot#########################
 
@@ -390,10 +391,55 @@ A_mapped_genes <- function(gene,
 mapped_A_genes <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10)
 
 
-#okay calkowicie dziala kiedy uzywam normalnego gffdf
+#################################NORMALIZATION###############################
 
-##amen to that!!! generating a plot of UTR to AUG efficiency 
+GetGeneReadsTotal <- function(gene, dataset, hdf5file) {
+  rhdf5::H5Aread(rhdf5::H5Aopen(rhdf5::H5Gopen(hdf5file, paste0("/", gene, "/", dataset, "/reads")), "reads_total"))
+}
 
+GetGeneLength <- function(gene, dataset, hdf5file) {
+  start_codon_pos <- rhdf5::H5Aread(rhdf5::H5Aopen(rhdf5::H5Gopen(hdf5file, paste0("/", gene, "/", dataset, "/reads")), "start_codon_pos"))[1]
+  stop_codon_pos <- rhdf5::H5Aread(rhdf5::H5Aopen(rhdf5::H5Gopen(hdf5file, paste0("/", gene, "/", dataset, "/reads")), "stop_codon_pos"))[1]
+  return(stop_codon_pos - start_codon_pos)
+}
+### i need to change that to 5UTR and 5UTR + 50nt
+
+GetGeneReadDensity <- function(gene, dataset, hdf5file, buffer = 50) {
+  # buffer
+  GetGeneReadsTotal(gene, dataset, hdf5file) / (GetGeneLength(gene, dataset, hdf5file) + 50)
+}
+#the original:
+# gene_sp_reads <- sapply(gene_names, GetGeneReadsTotal, dataset, hdf5file)
+# reads_per_b <- sapply(gene_names, GetGeneReadDensity, dataset, hdf5file)
+
+##example: 
+gene_sp_reads <- sapply(test_orfs, GetGeneReadsTotal, dataset = dataset_G2014, hdf5file = hdf5file_none)
+# YCR012W YEL009C YOR303W YOL130W YGR094W YML065W 
+# 314602     540    1201     795   17495     455
+
+reads_per_b <- sapply(test_orfs, GetGeneReadDensity, dataset = dataset_G2014, hdf5file = hdf5file_none)
+#     YCR012W     YEL009C     YOR303W     YOL130W     YGR094W     YML065W 
+# 242.3744222   0.6047032   0.9360873   0.3026266   5.2037478   0.1629656 
+
+tpms <- data.frame(
+  ORF = test_orfs,
+  readcount = gene_sp_reads,
+  rpb = reads_per_b,
+  tpm = reads_per_b * 1e6 / sum(reads_per_b)
+)
+
+#             ORF readcount         rpb         tpm
+# YCR012W YCR012W    314602 242.3744222 971111.4714
+# YEL009C YEL009C       540   0.6047032   2422.8392
+# YOR303W YOR303W      1201   0.9360873   3750.5819
+# YOL130W YOL130W       795   0.3026266   1212.5212
+# YGR094W YGR094W     17495   5.2037478  20849.6388
+# YML065W YML065W       455   0.1629656    652.9475
+
+
+#  if i use my code to get the read count for YCR012W in 5'UTR it will be 3849, but the normalization function above is done for the whole thing I think. So, I need to find out how to change the values. The TPM would be the final value?
+
+#############################################################################
 #CanVsNon - canonical vs non-canonical
 CanVsNon <- function(dataset) {
   
@@ -417,18 +463,20 @@ CanVsNon <- function(dataset) {
 abc <-CanVsNon(mapped_A_genes)
 
 #########OKAY TO JEST WAZNE, chcesz zobaczyc ktore bedziesz annotowala 
-map_if(abc$Counts_AUG,) ### od tego moge jutro zaczac, chce miec if and else statement ktory bedzie dzialal na kazdym row. If AUG > UTR then UTR/AUG*100, if AUG < UTR then AUG=x
+# map_if(abc$Counts_AUG,) ### od tego moge jutro zaczac, chce miec if and else statement ktory bedzie dzialal na kazdym row. If AUG > UTR then UTR/AUG*100, if AUG < UTR then AUG=x
 
 
 
-all_genes <- A_mapped_genes(gene_names, dataset = dataset, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10)
+all_genes <- A_mapped_genes(genes, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10)
 
 all_genes_plot <- CanVsNon(all_genes) 
 
 ###a scatter plot showing the UTR/AUG ratio
 ggplot(all_genes_plot, aes(x = Counts_AUG, y = Counts_UTR5)) +
   geom_point() +
-  scale_y_continuous(expand = c(0,0)) 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_y_log10() +
+  geom_text_repel(aes(label = Gene))
   
 
 
@@ -444,11 +492,8 @@ ggplot(all_genes_plot, aes(x = Counts_AUG, y = Counts_UTR5)) +
 # ggarrange(plot1, plot2, labels = c("A", "B"), ncol = 1, nrow = 2)
 
 
-All_genesAmapped <- function(gene,
-                             dataset,
-                             hdf5file,
-                             gffdf,
-                             min_read_length) {
+All_genesAmapped <- function(gene, dataset, hdf5file, gffdf,
+                              min_read_length, asite_disp_length) {
   
   output<- purrr::map(gene,
                GetGeneCodonPosReads1dsnap,
@@ -471,6 +516,15 @@ All_genesAmapped <- function(gene,
     tibble::as_tibble(.name_repair = "minimal") 
   
   return(Counts_Asite_mapped_all)
+  
+}
+
+function(gene, hdf5file1, hdf5file2, hdf5file3, dataset, gffdf,
+         min_read_length){
+  
+  sample1 <-All_genesAmapped()
+  sample2 <-All_genesAmapped()
+  sample3 <-All_genesAmapped()
   
 }
 
@@ -532,38 +586,38 @@ plotting_multiple <- function(input_data, gene_names) {
 # choosing_sample(WT_none, genes = test_orfs)
 
 ##WT none
-WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-hd_file <- WT_none
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-output_none <-final_function_table(test_orfs)
-
-## WT_3AT
-WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
-hd_file <- WT_3AT
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-output_3AT <-final_function_table(test_orfs)
-
-## WT_CHX
-WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
-hd_file <- WT_CHX
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-output_CHX <-final_function_table(test_orfs)
+# WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
+# hd_file <- WT_none
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# output_none <-final_function_table(test_orfs)
+# 
+# ## WT_3AT
+# WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+# hd_file <- WT_3AT
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# output_3AT <-final_function_table(test_orfs)
+# 
+# ## WT_CHX
+# WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+# hd_file <- WT_CHX
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# output_CHX <-final_function_table(test_orfs)
 ######
 
-two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
-  ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
-    geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
-    geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
-    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    theme_classic() + 
-    ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
-    scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
-}
+# two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
+#   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
+#     geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
+#     geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
+#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs(y= "Read count", x = "Position") +
+#     theme_classic() + 
+#     ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
+#     scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
+# }
 #### that's the kind of stuff i'd like to achieve 
 
-WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 3AT", "WT CHX") 
+# WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 3AT", "WT CHX") 
 # they're still lists and we want tibbles, otherwise it doesnt work
 ##I have no idea how to iterate this one
 
@@ -645,10 +699,10 @@ map(together, efficiency_barplot_each_gene, gene = genes )
 
 #########
 #creating table for all genes together 
-together_all_genes <-CDS_5UTR(genes = mapped_A_genes,gene_names = test_orfs)
-together_all_genes$`5'UTR` <- as.numeric(together_all_genes$`5'UTR`)
-together_all_genes$AUG <- as.numeric(together_all_genes$AUG)
-colSums(together_all_genes[,-1]) 
+# together_all_genes <-CDS_5UTR(genes = mapped_A_genes,gene_names = test_orfs)
+# together_all_genes$`5'UTR` <- as.numeric(together_all_genes$`5'UTR`)
+# together_all_genes$AUG <- as.numeric(together_all_genes$AUG)
+# colSums(together_all_genes[,-1]) 
 # 5'UTR   AUG 
 #   177    36
 
@@ -676,12 +730,10 @@ all_regions_together <- function(genes, gene_names) {
 }
 
 #example: 
-together <-all_regions_together(genes = mapped_A_genes, gene_names = test_orfs) %>%
-  tidyr::gather( key = "region", value = "count", -genes) 
+
+together <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10) %>%
+  all_regions_together(gene_names = test_orfs)
 together$count <- as.numeric(together$count)
-
-ggplot(together, aes(fill=condition, y=together$genes, x=together$region)) +   geom_bar(position = "stack", stat="identity")
-
 
 # #### Wilcoxon, for the moment leave it
 # Wilcoxon_computed <- function(genes, gene_names) {
