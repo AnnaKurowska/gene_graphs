@@ -401,7 +401,9 @@ NONE_sev_5UTR <- CanVsNon(NONE_sev)
 
 NONE_sev_5UTR_scatter <- ggplot(NONE_sev_5UTR, aes(x = Counts_AUG, y = Counts_UTR5)) +
   geom_point() + 
-  geom_text(aes(label = Gene))
+  # geom_text(aes(label = Gene)) +
+  scale_y_log10() +
+  geom_text_repel(aes(label = Gene))
 ggsave("NONE_sev_5UTR_scatter", device = "jpg")
 
 NONE_regions <- all_regions_together(NONE_sev, gene_names = genes)
