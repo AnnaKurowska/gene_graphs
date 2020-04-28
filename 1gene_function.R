@@ -519,15 +519,19 @@ All_genesAmapped <- function(gene, dataset, hdf5file, gffdf,
   
 }
 
-function(gene, hdf5file1, hdf5file2, hdf5file3, dataset, gffdf,
-         min_read_length){
+function_new <-function(gene, hdf5file1, hdf5file2, hdf5file3, dataset, gffdf, min_read_length){
   
-  sample1 <-All_genesAmapped()
-  sample2 <-All_genesAmapped()
-  sample3 <-All_genesAmapped()
+  sample1 <-A_mapped_genes(gene, dataset, hdf5file = hdf5file1, gffdf, min_read_length)
+  sample2 <-A_mapped_genes(gene, dataset, hdf5file = hdf5file2, gffdf, min_read_length)
+  sample3 <-A_mapped_genes(gene, dataset, hdf5file = hdf5file3, gffdf, min_read_length)
   
+  return(sample1)
 }
 
+function_new(gene = test_orfs, hdf5file1 = hdf5file_none,hdf5file2 = hdf5file_CHX, hdf5file3 = hdf5file_3AT, dataset = dataset_G2014 , gffdf = gff_df, min_read_length = 10)
+
+# Error in rhdf5::H5Dopen(., name = paste0("/", gene, "/", dataset, "/reads/data")) : 
+#   HDF5. Dataset. Can't open object.
 
 
 ############################################################################################                                               ##plotting##
