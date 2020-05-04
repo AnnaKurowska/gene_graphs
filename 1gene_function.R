@@ -536,547 +536,547 @@ ggplot(comparing_UTR_test_1, aes(x = Condition,group = 1, y= Reads, color = Gene
   geom_text_repel(aes(label = Reads))
 
 
-####
-### calculate read counts at each position for all genes 
-All_genesAmapped <- function(gene, dataset, hdf5file, gffdf,
-                              min_read_length, asite_disp_length, scaling_factor) {
-  
-  output<- purrr::map(gene,
-               GetGeneCodonPosReads1dsnap,
-               dataset,
-               hdf5file,
-               gffdf,
-               nnt_gene,
-               min_read_length,
-               asite_disp_length,
-               scaling_factor= scaling_factor_none)
-  
-  names(output) <- gene
-  
-  Counts <- output %>%
-    Reduce("+", .) %>%
-    dplyr::select(Counts)
-  
-  Pos <- output$YEL009C$Pos ### !!!
-  
-  Counts_Asite_mapped_all <-base::cbind(Pos, Counts) %>% 
-    tibble::as_tibble(.name_repair = "minimal") 
-  
-  return(Counts_Asite_mapped_all)
-  
-}
-
-try <- All_genesAmapped(gene = test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
-
-try <- normalization_each_gene(mapped_dataset = mapped_A_genes)
-
-
-############################################################################################                                               ##plotting##
-
-plotting_5UTR<- function(input_data) {
-  # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
-  #the actual plotting
-  plotted_UTR <- ggplot2::ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250, 50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs( x = "Position") +
-    # ggtitle(paste0("Ribosome footprint density of ", input_data)) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic()
-}
-
-plotting_5UTR_with_title<- function(input_data) {
-  # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
-  
-  #the actual plotting
-  plotted_UTR <- ggplot2::ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs( x = "Position") +
-    ggtitle(paste0("Ribosome footprint density of WT_3AT")) +
-    # coord_cartesian(clip = "off") +
-    # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
-    theme_classic()
-}
-
-##multiple plots##
-
-plotting_multiple <- function(input_data, gene_names) {
-  purrr :: map(input_data, plotting_5UTR) %>%
-    ggarrange(plotlist = ., labels = gene_names) %>%  
-    return()
-  #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
-}
-
-####################################################################################
-##2 in one##
-
-#this is what i'd like to achieve for the final A-site mapping function 
-# choosing_sample <- function(dataset, genes) {
-# hd_file <- dataset
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-# 
-# final_function_table(genes) %>%
-# return()
+# ####
+# ### calculate read counts at each position for all genes 
+# All_genesAmapped <- function(gene, dataset, hdf5file, gffdf,
+#                               min_read_length, asite_disp_length, scaling_factor) {
+#   
+#   output<- purrr::map(gene,
+#                GetGeneCodonPosReads1dsnap,
+#                dataset,
+#                hdf5file,
+#                gffdf,
+#                nnt_gene,
+#                min_read_length,
+#                asite_disp_length,
+#                scaling_factor= scaling_factor_none)
+#   
+#   names(output) <- gene
+#   
+#   Counts <- output %>%
+#     Reduce("+", .) %>%
+#     dplyr::select(Counts)
+#   
+#   Pos <- output$YEL009C$Pos ### !!!
+#   
+#   Counts_Asite_mapped_all <-base::cbind(Pos, Counts) %>% 
+#     tibble::as_tibble(.name_repair = "minimal") 
+#   
+#   return(Counts_Asite_mapped_all)
+#   
 # }
-
-# choosing_sample(WT_none, genes = test_orfs)
-
-##WT none
-# WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
-# hd_file <- WT_none
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-# output_none <-final_function_table(test_orfs)
 # 
-# ## WT_3AT
-# WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
-# hd_file <- WT_3AT
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-# output_3AT <-final_function_table(test_orfs)
+# try <- All_genesAmapped(gene = test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
 # 
-# ## WT_CHX
-# WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
-# hd_file <- WT_CHX
-# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-# output_CHX <-final_function_table(test_orfs)
-######
-
-# two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
-#   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
-#     geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
-#     geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
-#     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+# try <- normalization_each_gene(mapped_dataset = mapped_A_genes)
+# 
+# 
+# ############################################################################################                                               ##plotting##
+# 
+# plotting_5UTR<- function(input_data) {
+#   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+#   
+#   #the actual plotting
+#   plotted_UTR <- ggplot2::ggplot(input_data) +
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     scale_x_continuous(limits = c(-250, 50), expand = c(0, 0)) +
 #     scale_y_continuous(expand = c(0,0)) +
-#     labs(y= "Read count", x = "Position") +
-#     theme_classic() + 
-#     ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
-#     scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
+#     labs( x = "Position") +
+#     # ggtitle(paste0("Ribosome footprint density of ", input_data)) +
+#     # coord_cartesian(clip = "off") +
+#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+#     theme_classic()
 # }
-#### that's the kind of stuff i'd like to achieve 
-
-# WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 3AT", "WT CHX") 
-# they're still lists and we want tibbles, otherwise it doesnt work
-##I have no idea how to iterate this one
-
-####################################################################################
-### Creating a table for multiple positions for multiple genes
-
-#creating adjusted regions to sum read counts 
-sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
-  datatibble %>%
-    dplyr::filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-    dplyr::summarise(sum_read_counts_uAUG=sum(Counts)) 
-    # dplyr::pull
-}
-
-#for multiple genes 
-sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
-  #function 
-  sapply(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
-    return()
-  #sapply jest lepsze bo nie tworzy listy ale jakieś problemy są 
-  # set_rownames(., paste0(gene_names)) %>%
-  #names of columns and rows
-}
-
-#####CDS VS 5'UTR:
-
-CDS_5UTR <- function(genes, gene_names) {
-  table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
-  
-  region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
-  region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 10)
-  
-  base::cbind(table_genes, region1, region2) %>% 
-    as_tibble() %>%
-    set_colnames(c("genes","5'UTR", "AUG")) %>%
-    # tidyr::gather( key = "region", value = "count", -genes) %>%
-    return()
-}
-#required for efficiency barplot 
-together <-CDS_5UTR(genes = META_I_1_sev,gene_names = genes) %>%
-  tidyr::gather( key = "region", value = "count", -genes)
-together$count <- as.numeric(together$count)
-
-
-#########
-efficiency_barplot <- function(data) {
-  positions <- c( "5'UTR", "AUG")
-  
-  ggplot(data,aes(x=region, y = count, fill = region )) +
-    geom_col(show.legend = FALSE) +
-    theme_classic() +
-    labs(y= "Footprint density", x = "Region (mRNA)") +
-    # ggtitle("quantification across all genes") + 
-    scale_y_continuous(expand = c(0,0)) +
-    scale_x_discrete(limits = positions) 
-  
-  ## that gives an overall view of all read counts at each region 
-}
-efficiency_barplot(together)
-
-efficiency_barplot_each_gene <- function(data, gene){
-  positions <- c( "5'UTR", "AUG")
-  value <-filter(data, genes == gene)
-  
-  ggplot(value, aes(x = region, y = count, fill = region)) +
-    geom_col() +
-    theme_classic() +
-    labs(y= "Read count", x = "Region (mRNA)") +
-    ggtitle(paste0(gene)) + 
-    scale_y_continuous(expand = c(0,0)) +
-    scale_x_discrete(limits = positions)
-} 
-
-efficiency_barplot_each_gene(together, "YJR094C")
-
-map(together, efficiency_barplot_each_gene, gene = genes )
-# Error in UseMethod("filter_") : 
-#   no applicable method for 'filter_' applied to an object of class "list"
-
-#########
-#creating table for all genes together 
-# together_all_genes <-CDS_5UTR(genes = mapped_A_genes,gene_names = test_orfs)
-# together_all_genes$`5'UTR` <- as.numeric(together_all_genes$`5'UTR`)
-# together_all_genes$AUG <- as.numeric(together_all_genes$AUG)
-# colSums(together_all_genes[,-1]) 
-# 5'UTR   AUG 
-#   177    36
-
-##################
-#0:-15 nt
-#0:-60 nt
-#60:-120 nt
-#0:-250 nt
-all_regions_together <- function(genes, gene_names) {
-  table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
-  
-  region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
-  region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 10)
-  region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0) 
-  region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0) 
-  region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
-  
-  # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
-  
-  base::cbind(table_genes, region1, region2, region3, region4, region5) %>%    
-    as_tibble() %>%
-    magrittr::set_colnames(c("genes","5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")) %>%
-      tidyr::gather( key = "region", value = "count", -genes) %>%
-    return()
-}
-
-#example: 
-
-together <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10) %>%
-  all_regions_together(gene_names = test_orfs)
-together$count <- as.numeric(together$count)
-
-# #### Wilcoxon, for the moment leave it
-# Wilcoxon_computed <- function(genes, gene_names) {
+# 
+# plotting_5UTR_with_title<- function(input_data) {
+#   # text_AUG <- textGrob("AUG", gp=gpar(fontsize=13, fontface="bold")) #to place text annotation
+#   
+#   #the actual plotting
+#   plotted_UTR <- ggplot2::ggplot(input_data) +
+#     geom_density(aes(x=Pos, y=Counts), stat="identity") +
+#     scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     labs( x = "Position") +
+#     ggtitle(paste0("Ribosome footprint density of WT_3AT")) +
+#     # coord_cartesian(clip = "off") +
+#     # annotation_custom(text_AUG,xmin=0,xmax=0,ymin=0,ymax=5) +
+#     theme_classic()
+# }
+# 
+# ##multiple plots##
+# 
+# plotting_multiple <- function(input_data, gene_names) {
+#   purrr :: map(input_data, plotting_5UTR) %>%
+#     ggarrange(plotlist = ., labels = gene_names) %>%  
+#     return()
+#   #ggsave(file.path(paste0("Plot of ", gene)), device = "jpg")
+# }
+# 
+# ####################################################################################
+# ##2 in one##
+# 
+# #this is what i'd like to achieve for the final A-site mapping function 
+# # choosing_sample <- function(dataset, genes) {
+# # hd_file <- dataset
+# # hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# # 
+# # final_function_table(genes) %>%
+# # return()
+# # }
+# 
+# # choosing_sample(WT_none, genes = test_orfs)
+# 
+# ##WT none
+# # WT_none <- "G-Sc_2014/output/WTnone/WTnone.h5"
+# # hd_file <- WT_none
+# # hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# # output_none <-final_function_table(test_orfs)
+# # 
+# # ## WT_3AT
+# # WT_3AT <- "G-Sc_2014/output/WT3AT/WT3AT.h5"
+# # hd_file <- WT_3AT
+# # hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# # output_3AT <-final_function_table(test_orfs)
+# # 
+# # ## WT_CHX
+# # WT_CHX <- "G-Sc_2014/output/WTCHX/WTCHX.h5"
+# # hd_file <- WT_CHX
+# # hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# # output_CHX <-final_function_table(test_orfs)
+# ######
+# 
+# # two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
+# #   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
+# #     geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
+# #     geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
+# #     scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+# #     scale_y_continuous(expand = c(0,0)) +
+# #     labs(y= "Read count", x = "Position") +
+# #     theme_classic() + 
+# #     ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
+# #     scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
+# # }
+# #### that's the kind of stuff i'd like to achieve 
+# 
+# # WT_CHX_3AT <- two_in_one_plots(output_3AT[[1]], output_CHX[[1]], "YCR012W", "WT 3AT", "WT CHX") 
+# # they're still lists and we want tibbles, otherwise it doesnt work
+# ##I have no idea how to iterate this one
+# 
+# ####################################################################################
+# ### Creating a table for multiple positions for multiple genes
+# 
+# #creating adjusted regions to sum read counts 
+# sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
+#   datatibble %>%
+#     dplyr::filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+#     dplyr::summarise(sum_read_counts_uAUG=sum(Counts)) 
+#     # dplyr::pull
+# }
+# 
+# #for multiple genes 
+# sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
+#   #function 
+#   sapply(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
+#     return()
+#   #sapply jest lepsze bo nie tworzy listy ale jakieś problemy są 
+#   # set_rownames(., paste0(gene_names)) %>%
+#   #names of columns and rows
+# }
+# 
+# #####CDS VS 5'UTR:
+# 
+# CDS_5UTR <- function(genes, gene_names) {
 #   table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
 #   
 #   region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
-#   region2 <- sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 10)
+#   region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 10)
+#   
+#   base::cbind(table_genes, region1, region2) %>% 
+#     as_tibble() %>%
+#     set_colnames(c("genes","5'UTR", "AUG")) %>%
+#     # tidyr::gather( key = "region", value = "count", -genes) %>%
+#     return()
+# }
+# #required for efficiency barplot 
+# together <-CDS_5UTR(genes = META_I_1_sev,gene_names = genes) %>%
+#   tidyr::gather( key = "region", value = "count", -genes)
+# together$count <- as.numeric(together$count)
+# 
+# 
+# #########
+# efficiency_barplot <- function(data) {
+#   positions <- c( "5'UTR", "AUG")
+#   
+#   ggplot(data,aes(x=region, y = count, fill = region )) +
+#     geom_col(show.legend = FALSE) +
+#     theme_classic() +
+#     labs(y= "Footprint density", x = "Region (mRNA)") +
+#     # ggtitle("quantification across all genes") + 
+#     scale_y_continuous(expand = c(0,0)) +
+#     scale_x_discrete(limits = positions) 
+#   
+#   ## that gives an overall view of all read counts at each region 
+# }
+# efficiency_barplot(together)
+# 
+# efficiency_barplot_each_gene <- function(data, gene){
+#   positions <- c( "5'UTR", "AUG")
+#   value <-filter(data, genes == gene)
+#   
+#   ggplot(value, aes(x = region, y = count, fill = region)) +
+#     geom_col() +
+#     theme_classic() +
+#     labs(y= "Read count", x = "Region (mRNA)") +
+#     ggtitle(paste0(gene)) + 
+#     scale_y_continuous(expand = c(0,0)) +
+#     scale_x_discrete(limits = positions)
+# } 
+# 
+# efficiency_barplot_each_gene(together, "YJR094C")
+# 
+# map(together, efficiency_barplot_each_gene, gene = genes )
+# # Error in UseMethod("filter_") : 
+# #   no applicable method for 'filter_' applied to an object of class "list"
+# 
+# #########
+# #creating table for all genes together 
+# # together_all_genes <-CDS_5UTR(genes = mapped_A_genes,gene_names = test_orfs)
+# # together_all_genes$`5'UTR` <- as.numeric(together_all_genes$`5'UTR`)
+# # together_all_genes$AUG <- as.numeric(together_all_genes$AUG)
+# # colSums(together_all_genes[,-1]) 
+# # 5'UTR   AUG 
+# #   177    36
+# 
+# ##################
+# #0:-15 nt
+# #0:-60 nt
+# #60:-120 nt
+# #0:-250 nt
+# all_regions_together <- function(genes, gene_names) {
+#   table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
+#   
+#   region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
+#   region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 10)
 #   region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0) 
 #   region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0) 
 #   region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
 #   
 #   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
 #   
-#   table <-cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
-#     set_colnames(c("genes","-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")) %>%
-#     gather( key = "genes", value = "count")
-#   table$count <- as.numeric(table$count)
-#   
-#   wilcoxon_computed <- pairwise.wilcox.test(table$count, table$genes, paired = FALSE, p.adjust.method = "none")
-#   return(wilcoxon_computed)
+#   base::cbind(table_genes, region1, region2, region3, region4, region5) %>%    
+#     as_tibble() %>%
+#     magrittr::set_colnames(c("genes","5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")) %>%
+#       tidyr::gather( key = "region", value = "count", -genes) %>%
+#     return()
 # }
-# #wilcoxon test -i think its for all genes? although not sure!
-# Wilcoxon_computed(output_orfs, test_orfs)
-# data:  table$count and table$genes 
 # 
-#          -120:-60 -15:-0 -15:10 -250:0
-#   -15:-0 0.69     -      -      -     
-#   -15:10 0.69     0.92   -      -     
-#   -250:0 0.15     0.35   0.46   -     
-#   -60:0  0.69     0.75   1.00   0.35 
-# P value adjustment method: none 
-# Warning messages:
-#   1: In wilcox.test.default(xi, xj, paired = paired, ...) :
-#   cannot compute exact p-value with ties
-# 2: In wilcox.test.default(xi, xj, paired = paired, ...) :
-#   cannot compute exact p-value with ties
-# 3: In wilcox.test.default(xi, xj, paired = paired, ...) :
-#   cannot compute exact p-value with ties
-# 4: In wilcox.test.default(xi, xj, paired = paired, ...) :
-#   cannot compute exact p-value with ties
-
-
-#### pairwise Wilcoxon 
-
-# pairwise.wilcox.test(together$count, together$region, p.adjust.method = "none", , alternative = "greater")  
+# #example: 
 # 
-# ## that gives an overall view of all read counts at each region 
-plotted_barplots <- function(data) {
-  positions <- c( "5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")
-
-  ggplot(data,aes(x=region, y = count, fill = region)) +
-    geom_col() +
-    theme_classic() +
-    labs(y= "Read count", x = "Region (mRNA)") +
-    ggtitle("quantification across all genes") +
-    scale_y_continuous(expand = c(0,0)) +
-    scale_x_discrete(limits = positions)
-
-  ## that gives an overall view of all read counts at each region
-}
-
-## Individual for each gene
-plotted_each_barplot <- function(data, gene){
-  positions <- c( "-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")
-  value <-filter(data, genes == gene)
-  
-  ggplot(value,aes(x = region, y = count, fill = region)) +
-    geom_col() +
-    theme_classic() +
-    labs(y= "Read count", x = "Region (mRNA)") +
-    ggtitle(paste0(gene)) + 
-    scale_y_continuous(expand = c(0,0)) +
-    scale_x_discrete(limits = positions)
-} 
-
-#WT none
-together <-all_regions_together(genes = output_none ,gene_names = test_orfs) 
-together$count <- as.numeric(together$count)
-
-plotted_each_barplot(together, "YCR012W")
-plotted_barplots(together)
-
-#WT 3AT
-together_3AT <-all_regions_together(genes = output_3AT,gene_names = test_orfs) 
-together_3AT$count <- as.numeric(together_3AT$count)
-
-plotted_each_barplot(together_3AT, "YCR012W")
-plotted_barplots(together_3AT)
-
-#WT CHX
-together_CHX <-all_regions_together(genes = output_CHX,gene_names = test_orfs) 
-together_CHX$count <- as.numeric(together_CHX$count)
-
-plotted_each_barplot(together_CHX, "YCR012W")
-plotted_barplots(together_CHX)
-
-  # I don't know what to do about it, it's clearly an issue with subsetting 
-
-#example 
-apply(together, 1, plotted_each_barplot, test_orfs)
-## Error in UseMethod("filter_") : 
-##no applicable method for 'filter_' applied to an object of class "list"
-
-############################################## seems we're not using it at the end but still useful 
-sliding_windows <- function(tibble) {
-  RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
-    tibble::enframe(name = NULL) %>%
-     t()
-}
-
-sliding_windows_multiple <- function(tibble, genes){
-  names(tibble) <- genes
-  joined <-purrr::map(tibble, sliding_windows ) 
-
-  
-  bind_rows(joined) %>%
-    set_rownames( value = c(seq(from = -250, to = 20, by = 30)))  %>%
-    t() %>%
-    return()  ###add a column instead of the set_rownames and you want these to be ranges (from -250 to -230)
-}
-
-xxxx <-sliding_windows_multiple(mapped_A_genes, test_orfs)
-
-selected <- xxxx[xxxx > 10]
-
-(xxxx > 0) * 1.0 
-
-if (xxxx > 10 ) {
-  (xxxx*10)
-}
-empty <- list()
-
-#dziala tylko nie wiem jak wsadzic te values do nowej matrycy wraz ze wspolrzednymi 
-for (i in 1:nrow(xxxx)) {
-   for (j in 2:ncol(xxxx)) {
-    if(xxxx[i,j] >= 10) {
-      
-    }}}
-
-    # xxxx >0
-    # -250  -220  -190  -160  -130  -100   -70   -40   -10    20
-    # YCR012W FALSE FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE
-    # YEL009C FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE FALSE FALSE FALSE
-    # YOR303W FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE  TRUE  TRUE
-    # YOL130W FALSE FALSE FALSE FALSE FALSE  TRUE FALSE FALSE FALSE FALSE
-    # YGR094W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE  TRUE
-    # YML065W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE
-
-
-
-xxxx > 10 
-  
-xxxx_selected <-which( xxxx > 10, arr.ind=T )
-#          row col
-# YEL009C   2   3
-# YOR303W   3   6
-# YCR012W   1   7
-# YOR303W   3   7
-# YCR012W   1   8
-# YCR012W   1   9
-# YCR012W   1  10
-
-fastQ <- "G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
-c<-read.FASTA(fastQ, type = "DNA")
-# c$YAL068C
-# [1] 88 28 28 18 88 18 48 88 88 88 48 88 18 18 18 88 18 48 88 18 18 28 48 18 18 28 88 48 88 88 88 28 [33] 88 88 48 88 48 28 88 18 28 18 28 28 88 18 88 48 88 48 88 18 88 88 18 48 88 48 88 18 18 48 18 48 [65] 18 48 88 88 88 48 88 18 48 88 48 88 18 88 18 88 48 88 48 88 88 18 88 18 18 18 48 88 18 48 88 48
-
-b <- read.dna(fastQ, format = "fasta",
-         nlines = 0, comment.char = "#",
-         as.character = TRUE, as.matrix = TRUE)
-# $YDR122W   list
-# [1] "t" "t" "t" "t" "g" "a" "g" "a" "t" "t" "t" "a" "c" "t" "t" "c" "g" "t" "t" "a" "t" "t" "a"
-# [24] "t" "a" "a" "g" "g" "a" "c" "a" "t" "a" "c" "g" "g" "t" "a" "a" "c" "c" "t" "a" "g" "g" "c"
-# [47] "t" "a" "g" "t" "t" "a" "a" "c" "a" "t" "a" "a" "t" "t" "a" "g" "t" "t" "g" "t" "c" "a" "c"
-# [70] "c" "c" "t" "t" "c" "g" "c" "c" "c" "c" "c" "c" "t" "a" "c" "c" "c" "t" "a" "t" "c" "g" "g"
-#
-##########################################################################################
-
-### Comparison of 5'UTR for all genes between 3 conditions  
-  # requires PRE_ENTRY_2_sev_5UTR as the output
-
-UTR5_3_conditions_all <-function(condition1_UTR, condition2_UTR, condition3_UTR){
-  condition1_UTR <- sum(condition1_UTR$Counts_UTR5) 
-  condition2_UTR <- sum(condition2_UTR$Counts_UTR5)
-  condition3_UTR <- sum(condition3_UTR$Counts_UTR5) 
-  
-  Condition <- c("WT NONE", "WT CHX", "WT 3AT")
-  for_plot_UTR <- rbind(condition1_UTR, condition2_UTR, condition3_UTR) %>%
-    as_tibble %>%
-    set_colnames("UTR5") %>%
-    cbind(Condition) 
-  
-  plot_UTR <-ggplot(for_plot_UTR) +
-    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
-    # scale_x_discrete(labels=c("WT_3AT","WT_CHX", "WT_NONE")) +
-    scale_y_continuous(expand = c(0,0)) +
-    theme_classic() +
-    labs(x= "Condition", y = "Ribosome footprint 5'UTR")
-  return(plot_UTR)
-}
-
-### Comparison of 5'UTR for 1 gene between 3 conditions  
-# requires PRE_ENTRY_2_sev_5UTR as the output, also gene must be entre parentheses
-
-compared_UTR_single<-function(condition1, condition2, condition3, gene){
-  
-  search_for_5UTR <- function(condition, gene){
-    condition %>%
-      filter(Gene == gene ) %>%
-      select(Counts_UTR5) %>%
-      pull
-  }
-  
-  UTR1 <-search_for_5UTR(condition1, gene)
-  
-  UTR2 <-search_for_5UTR(condition2, gene)
-  
-  UTR3 <-search_for_5UTR(condition3, gene)
-  
-  Condition <- c("WT NONE", "WT CHX", "WT 3AT")
-  
-  for_plot <- rbind(UTR1,UTR2,UTR3) %>%
-    set_colnames("UTR5") %>%
-    cbind(Condition) %>% 
-    as_tibble() 
-  for_plot$UTR5 <-as.numeric(for_plot$UTR5)
-  
-  plot_UTR <-ggplot(for_plot) +
-    geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
-    # scale_x_discrete(labels=c("META_I_1", "META_II_1", "PRE_ENTRY_1")) +
-    scale_y_continuous(expand = c(0,0)) +
-    theme_classic() +
-    labs(x= "Condition", y = "Ribosome footprint 5'UTR") +
-    ggtitle(paste0(gene))
-  
-  return(plot_UTR)
-  
-}
-
-
-##########################################################################################
-                                     ######FASTQ######
-fq.file <- "/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/Ania_Riboviz/G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
-
-fastq_sequence <- Fastqfile(fq.file)
-  #not entirely what i want, a bit confusing: 
-# A tibble: 37,762 x 3
-# Header                        Sequence                      Quality                   
-# <chr>                         <chr>                         <chr>                       
-#   1 >YAL068C                      ACCTATGAAAGATTTATGATTCGTTCAG… GCTGCTTCAACTATATGCCTTTGAGAAT…
-# 2 AACAAATACAATGGTCAAATTAACTTCA… TAGCTCAATCTGACGAAAGAGTCAACTT… CACCATGTTGACCGGTATTGCTCCAGAC…
-# 3 CAGCCATCTCCAGTGCTCTATCCAAGGA… TTCCATAGAAATTGAAAATTAACGAACA… AAAGAAACTTCTACACTATTGTAGAAAA…
-# 4 >YAL067W-A                    ATATTCTCAAAGGCATATAGTTGAAGCA… TTCTGAACGAAT
-
-#################### FULL BRAR SECTION ########################################
-#### Brar et al. 2012 data
-choosing_sample <- function(hdfile, genes, dataset, gffdf, min_read_length) {
-  
-hd_file <- hdfile
-hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
-
-All_genesAmapped(genes, dataset, hdf5file, gffdf, min_read_length) %>%
-return()
-}
-
-choosing_sample(hd_file_PRE1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10) #works!! still gotta improve the file part
-
-
-dataset_Brar <- "B-Sc_2012"
-PRE_ENTRY_1 <- "B-Sc_2012/input/B-Sc_2012_h5 files/PRE_ENTRY_1.h5"
-  hd_file_PRE1 <- PRE_ENTRY_1
-res_PRE_1 <-choosing_sample(hd_file_PRE1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-
-PRE_ENTRY_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/PRE_ENTRY_2.h5"
-  hd_file_PRE2 <- PRE_ENTRY_2
-res_PRE_2 <-choosing_sample(hd_file_PRE2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-
-RECOMB_1 <-"B-Sc_2012/input/B-Sc_2012_h5 files/RECOMB_1.h5"
-  hd_file_RECOMB_1 <- RECOMB_1
-res_RECOMB_1 <- choosing_sample(hd_file_RECOMB_1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-  
-RECOMB_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/RECOMB_2.h5"
-  hd_file_RECOMB_2 <- RECOMB_2
-res_RECOMB_2 <- choosing_sample(hd_file_RECOMB_2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-  
-SPORES_1 <-"B-Sc_2012/input/B-Sc_2012_h5 files/SPORES_1.h5"
-  hd_file_SPORES_1 <- SPORES_1
-res_SPORES_1 <- choosing_sample(hd_file_SPORES_1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-
-SPORES_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/SPORES_2.h5"
-  hd_file_SPORES_2 <- SPORES_2
-res_SPORES_2 <- choosing_sample(hd_file_SPORES_2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
-
-plot_PRE1 <- plotting_5UTR(res_PRE_1)
-plot_PRE2 <- plotting_5UTR(res_PRE_2)
-plot_RECOMB1 <- plotting_5UTR(res_RECOMB_1)
-plot_RECOMB2 <- plotting_5UTR(res_RECOMB_2)
-plot_SPORES1 <- plotting_5UTR(res_SPORES_1)
-plot_SPORES2 <- plotting_5UTR(res_SPORES_2)
-
-plot_BRAR <- ggarrange(plot_PRE1, plot_PRE2, plot_RECOMB1, plot_RECOMB2, plot_SPORES1, plot_SPORES2, labels = c("PRE-MEIOTIC ENTRY BioRep 1 (0h)","PRE-MEIOTIC ENTRY BioRep 2 (0h)", "RECOMBINATION BioRep 1 (6h)", "RECOMBINATION BioRep 2 (3h)", "     SPORE BioRep 1 (11h)", "     SPORE BioRep 2 (24h)"), ncol = 1, nrow = 6 )
-
+# together <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10) %>%
+#   all_regions_together(gene_names = test_orfs)
+# together$count <- as.numeric(together$count)
+# 
+# # #### Wilcoxon, for the moment leave it
+# # Wilcoxon_computed <- function(genes, gene_names) {
+# #   table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
+# #   
+# #   region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = 0)
+# #   region2 <- sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 10)
+# #   region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0) 
+# #   region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0) 
+# #   region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
+# #   
+# #   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
+# #   
+# #   table <-cbind(table_genes,region1, region2, region3, region4, region5) %>% as_tibble() %>%
+# #     set_colnames(c("genes","-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")) %>%
+# #     gather( key = "genes", value = "count")
+# #   table$count <- as.numeric(table$count)
+# #   
+# #   wilcoxon_computed <- pairwise.wilcox.test(table$count, table$genes, paired = FALSE, p.adjust.method = "none")
+# #   return(wilcoxon_computed)
+# # }
+# # #wilcoxon test -i think its for all genes? although not sure!
+# # Wilcoxon_computed(output_orfs, test_orfs)
+# # data:  table$count and table$genes 
+# # 
+# #          -120:-60 -15:-0 -15:10 -250:0
+# #   -15:-0 0.69     -      -      -     
+# #   -15:10 0.69     0.92   -      -     
+# #   -250:0 0.15     0.35   0.46   -     
+# #   -60:0  0.69     0.75   1.00   0.35 
+# # P value adjustment method: none 
+# # Warning messages:
+# #   1: In wilcox.test.default(xi, xj, paired = paired, ...) :
+# #   cannot compute exact p-value with ties
+# # 2: In wilcox.test.default(xi, xj, paired = paired, ...) :
+# #   cannot compute exact p-value with ties
+# # 3: In wilcox.test.default(xi, xj, paired = paired, ...) :
+# #   cannot compute exact p-value with ties
+# # 4: In wilcox.test.default(xi, xj, paired = paired, ...) :
+# #   cannot compute exact p-value with ties
+# 
+# 
+# #### pairwise Wilcoxon 
+# 
+# # pairwise.wilcox.test(together$count, together$region, p.adjust.method = "none", , alternative = "greater")  
+# # 
+# # ## that gives an overall view of all read counts at each region 
+# plotted_barplots <- function(data) {
+#   positions <- c( "5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")
+# 
+#   ggplot(data,aes(x=region, y = count, fill = region)) +
+#     geom_col() +
+#     theme_classic() +
+#     labs(y= "Read count", x = "Region (mRNA)") +
+#     ggtitle("quantification across all genes") +
+#     scale_y_continuous(expand = c(0,0)) +
+#     scale_x_discrete(limits = positions)
+# 
+#   ## that gives an overall view of all read counts at each region
+# }
+# 
+# ## Individual for each gene
+# plotted_each_barplot <- function(data, gene){
+#   positions <- c( "-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")
+#   value <-filter(data, genes == gene)
+#   
+#   ggplot(value,aes(x = region, y = count, fill = region)) +
+#     geom_col() +
+#     theme_classic() +
+#     labs(y= "Read count", x = "Region (mRNA)") +
+#     ggtitle(paste0(gene)) + 
+#     scale_y_continuous(expand = c(0,0)) +
+#     scale_x_discrete(limits = positions)
+# } 
+# 
+# #WT none
+# together <-all_regions_together(genes = output_none ,gene_names = test_orfs) 
+# together$count <- as.numeric(together$count)
+# 
+# plotted_each_barplot(together, "YCR012W")
+# plotted_barplots(together)
+# 
+# #WT 3AT
+# together_3AT <-all_regions_together(genes = output_3AT,gene_names = test_orfs) 
+# together_3AT$count <- as.numeric(together_3AT$count)
+# 
+# plotted_each_barplot(together_3AT, "YCR012W")
+# plotted_barplots(together_3AT)
+# 
+# #WT CHX
+# together_CHX <-all_regions_together(genes = output_CHX,gene_names = test_orfs) 
+# together_CHX$count <- as.numeric(together_CHX$count)
+# 
+# plotted_each_barplot(together_CHX, "YCR012W")
+# plotted_barplots(together_CHX)
+# 
+#   # I don't know what to do about it, it's clearly an issue with subsetting 
+# 
+# #example 
+# apply(together, 1, plotted_each_barplot, test_orfs)
+# ## Error in UseMethod("filter_") : 
+# ##no applicable method for 'filter_' applied to an object of class "list"
+# 
+# ############################################## seems we're not using it at the end but still useful 
+# sliding_windows <- function(tibble) {
+#   RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
+#     tibble::enframe(name = NULL) %>%
+#      t()
+# }
+# 
+# sliding_windows_multiple <- function(tibble, genes){
+#   names(tibble) <- genes
+#   joined <-purrr::map(tibble, sliding_windows ) 
+# 
+#   
+#   bind_rows(joined) %>%
+#     set_rownames( value = c(seq(from = -250, to = 20, by = 30)))  %>%
+#     t() %>%
+#     return()  ###add a column instead of the set_rownames and you want these to be ranges (from -250 to -230)
+# }
+# 
+# xxxx <-sliding_windows_multiple(mapped_A_genes, test_orfs)
+# 
+# selected <- xxxx[xxxx > 10]
+# 
+# (xxxx > 0) * 1.0 
+# 
+# if (xxxx > 10 ) {
+#   (xxxx*10)
+# }
+# empty <- list()
+# 
+# #dziala tylko nie wiem jak wsadzic te values do nowej matrycy wraz ze wspolrzednymi 
+# for (i in 1:nrow(xxxx)) {
+#    for (j in 2:ncol(xxxx)) {
+#     if(xxxx[i,j] >= 10) {
+#       
+#     }}}
+# 
+#     # xxxx >0
+#     # -250  -220  -190  -160  -130  -100   -70   -40   -10    20
+#     # YCR012W FALSE FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE
+#     # YEL009C FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE FALSE FALSE FALSE
+#     # YOR303W FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE  TRUE  TRUE
+#     # YOL130W FALSE FALSE FALSE FALSE FALSE  TRUE FALSE FALSE FALSE FALSE
+#     # YGR094W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE  TRUE
+#     # YML065W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE
+# 
+# 
+# 
+# xxxx > 10 
+#   
+# xxxx_selected <-which( xxxx > 10, arr.ind=T )
+# #          row col
+# # YEL009C   2   3
+# # YOR303W   3   6
+# # YCR012W   1   7
+# # YOR303W   3   7
+# # YCR012W   1   8
+# # YCR012W   1   9
+# # YCR012W   1  10
+# 
+# fastQ <- "G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
+# c<-read.FASTA(fastQ, type = "DNA")
+# # c$YAL068C
+# # [1] 88 28 28 18 88 18 48 88 88 88 48 88 18 18 18 88 18 48 88 18 18 28 48 18 18 28 88 48 88 88 88 28 [33] 88 88 48 88 48 28 88 18 28 18 28 28 88 18 88 48 88 48 88 18 88 88 18 48 88 48 88 18 18 48 18 48 [65] 18 48 88 88 88 48 88 18 48 88 48 88 18 88 18 88 48 88 48 88 88 18 88 18 18 18 48 88 18 48 88 48
+# 
+# b <- read.dna(fastQ, format = "fasta",
+#          nlines = 0, comment.char = "#",
+#          as.character = TRUE, as.matrix = TRUE)
+# # $YDR122W   list
+# # [1] "t" "t" "t" "t" "g" "a" "g" "a" "t" "t" "t" "a" "c" "t" "t" "c" "g" "t" "t" "a" "t" "t" "a"
+# # [24] "t" "a" "a" "g" "g" "a" "c" "a" "t" "a" "c" "g" "g" "t" "a" "a" "c" "c" "t" "a" "g" "g" "c"
+# # [47] "t" "a" "g" "t" "t" "a" "a" "c" "a" "t" "a" "a" "t" "t" "a" "g" "t" "t" "g" "t" "c" "a" "c"
+# # [70] "c" "c" "t" "t" "c" "g" "c" "c" "c" "c" "c" "c" "t" "a" "c" "c" "c" "t" "a" "t" "c" "g" "g"
+# #
+# ##########################################################################################
+# 
+# ### Comparison of 5'UTR for all genes between 3 conditions  
+#   # requires PRE_ENTRY_2_sev_5UTR as the output
+# 
+# UTR5_3_conditions_all <-function(condition1_UTR, condition2_UTR, condition3_UTR){
+#   condition1_UTR <- sum(condition1_UTR$Counts_UTR5) 
+#   condition2_UTR <- sum(condition2_UTR$Counts_UTR5)
+#   condition3_UTR <- sum(condition3_UTR$Counts_UTR5) 
+#   
+#   Condition <- c("WT NONE", "WT CHX", "WT 3AT")
+#   for_plot_UTR <- rbind(condition1_UTR, condition2_UTR, condition3_UTR) %>%
+#     as_tibble %>%
+#     set_colnames("UTR5") %>%
+#     cbind(Condition) 
+#   
+#   plot_UTR <-ggplot(for_plot_UTR) +
+#     geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
+#     # scale_x_discrete(labels=c("WT_3AT","WT_CHX", "WT_NONE")) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     theme_classic() +
+#     labs(x= "Condition", y = "Ribosome footprint 5'UTR")
+#   return(plot_UTR)
+# }
+# 
+# ### Comparison of 5'UTR for 1 gene between 3 conditions  
+# # requires PRE_ENTRY_2_sev_5UTR as the output, also gene must be entre parentheses
+# 
+# compared_UTR_single<-function(condition1, condition2, condition3, gene){
+#   
+#   search_for_5UTR <- function(condition, gene){
+#     condition %>%
+#       filter(Gene == gene ) %>%
+#       select(Counts_UTR5) %>%
+#       pull
+#   }
+#   
+#   UTR1 <-search_for_5UTR(condition1, gene)
+#   
+#   UTR2 <-search_for_5UTR(condition2, gene)
+#   
+#   UTR3 <-search_for_5UTR(condition3, gene)
+#   
+#   Condition <- c("WT NONE", "WT CHX", "WT 3AT")
+#   
+#   for_plot <- rbind(UTR1,UTR2,UTR3) %>%
+#     set_colnames("UTR5") %>%
+#     cbind(Condition) %>% 
+#     as_tibble() 
+#   for_plot$UTR5 <-as.numeric(for_plot$UTR5)
+#   
+#   plot_UTR <-ggplot(for_plot) +
+#     geom_bar(aes(x=Condition, y= UTR5, fill = Condition), stat="identity",show.legend = FALSE ) +
+#     # scale_x_discrete(labels=c("META_I_1", "META_II_1", "PRE_ENTRY_1")) +
+#     scale_y_continuous(expand = c(0,0)) +
+#     theme_classic() +
+#     labs(x= "Condition", y = "Ribosome footprint 5'UTR") +
+#     ggtitle(paste0(gene))
+#   
+#   return(plot_UTR)
+#   
+# }
+# 
+# 
+# ##########################################################################################
+#                                      ######FASTQ######
+# fq.file <- "/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/Ania_Riboviz/G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
+# 
+# fastq_sequence <- Fastqfile(fq.file)
+#   #not entirely what i want, a bit confusing: 
+# # A tibble: 37,762 x 3
+# # Header                        Sequence                      Quality                   
+# # <chr>                         <chr>                         <chr>                       
+# #   1 >YAL068C                      ACCTATGAAAGATTTATGATTCGTTCAG… GCTGCTTCAACTATATGCCTTTGAGAAT…
+# # 2 AACAAATACAATGGTCAAATTAACTTCA… TAGCTCAATCTGACGAAAGAGTCAACTT… CACCATGTTGACCGGTATTGCTCCAGAC…
+# # 3 CAGCCATCTCCAGTGCTCTATCCAAGGA… TTCCATAGAAATTGAAAATTAACGAACA… AAAGAAACTTCTACACTATTGTAGAAAA…
+# # 4 >YAL067W-A                    ATATTCTCAAAGGCATATAGTTGAAGCA… TTCTGAACGAAT
+# 
+# #################### FULL BRAR SECTION ########################################
+# #### Brar et al. 2012 data
+# choosing_sample <- function(hdfile, genes, dataset, gffdf, min_read_length) {
+#   
+# hd_file <- hdfile
+# hdf5file <- rhdf5::H5Fopen(hd_file) # filehandle for the h5 file
+# 
+# All_genesAmapped(genes, dataset, hdf5file, gffdf, min_read_length) %>%
+# return()
+# }
+# 
+# choosing_sample(hd_file_PRE1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10) #works!! still gotta improve the file part
+# 
+# 
+# dataset_Brar <- "B-Sc_2012"
+# PRE_ENTRY_1 <- "B-Sc_2012/input/B-Sc_2012_h5 files/PRE_ENTRY_1.h5"
+#   hd_file_PRE1 <- PRE_ENTRY_1
+# res_PRE_1 <-choosing_sample(hd_file_PRE1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+# 
+# PRE_ENTRY_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/PRE_ENTRY_2.h5"
+#   hd_file_PRE2 <- PRE_ENTRY_2
+# res_PRE_2 <-choosing_sample(hd_file_PRE2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+# 
+# RECOMB_1 <-"B-Sc_2012/input/B-Sc_2012_h5 files/RECOMB_1.h5"
+#   hd_file_RECOMB_1 <- RECOMB_1
+# res_RECOMB_1 <- choosing_sample(hd_file_RECOMB_1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+#   
+# RECOMB_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/RECOMB_2.h5"
+#   hd_file_RECOMB_2 <- RECOMB_2
+# res_RECOMB_2 <- choosing_sample(hd_file_RECOMB_2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+#   
+# SPORES_1 <-"B-Sc_2012/input/B-Sc_2012_h5 files/SPORES_1.h5"
+#   hd_file_SPORES_1 <- SPORES_1
+# res_SPORES_1 <- choosing_sample(hd_file_SPORES_1, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+# 
+# SPORES_2 <-"B-Sc_2012/input/B-Sc_2012_h5 files/SPORES_2.h5"
+#   hd_file_SPORES_2 <- SPORES_2
+# res_SPORES_2 <- choosing_sample(hd_file_SPORES_2, test_orfs, dataset = dataset_Brar, gff_df, min_read_length = 10)
+# 
+# plot_PRE1 <- plotting_5UTR(res_PRE_1)
+# plot_PRE2 <- plotting_5UTR(res_PRE_2)
+# plot_RECOMB1 <- plotting_5UTR(res_RECOMB_1)
+# plot_RECOMB2 <- plotting_5UTR(res_RECOMB_2)
+# plot_SPORES1 <- plotting_5UTR(res_SPORES_1)
+# plot_SPORES2 <- plotting_5UTR(res_SPORES_2)
+# 
+# plot_BRAR <- ggarrange(plot_PRE1, plot_PRE2, plot_RECOMB1, plot_RECOMB2, plot_SPORES1, plot_SPORES2, labels = c("PRE-MEIOTIC ENTRY BioRep 1 (0h)","PRE-MEIOTIC ENTRY BioRep 2 (0h)", "RECOMBINATION BioRep 1 (6h)", "RECOMBINATION BioRep 2 (3h)", "     SPORE BioRep 1 (11h)", "     SPORE BioRep 2 (24h)"), ncol = 1, nrow = 6 )
+# 
 
 
 ##################################### MISCALLENAEOUS#######################
