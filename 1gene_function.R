@@ -395,7 +395,7 @@ A_mapped_genes <- function(gene,
                            hdf5file,
                            gffdf,
                            min_read_length, 
-                           asite_disp_length) {
+                           a?site_disp_length) {
   
   
   output<- purrr::map(gene,
@@ -494,8 +494,6 @@ CanVsNon <- function(dataset) {
   # mutate(UTR_AUG, Efficiency = Counts_UTR5/Counts_AUG*100) 
   
 }
-
-abc <-CanVsNon(another_test)
 
 all_genes <- A_mapped_genes(genes, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10,asite_disp_length)
 
