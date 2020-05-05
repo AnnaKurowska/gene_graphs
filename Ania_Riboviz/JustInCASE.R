@@ -425,38 +425,39 @@ A_mapped_genes <- function(gene,
   # 
   return(output)
 }
+######REALLY IMPORTAT...
 
 ########### trying to combine multiple datasets, maybe i should do that at the matrix level?
-mapped_A_genes_CHX <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
-
-mapped_A_genes_CHX <-bind_rows(mapped_A_genes_CHX,.id = "Gene")
-
-mapped_A_genes_none <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
-
-mapped_A_genes_none <-bind_rows(mapped_A_genes_none,.id = "Gene")
-
-joining_datasets <-function(dataset1, dataset2, gene){
-  data1 <- filter(dataset1, Gene == gene)
-  data2 <- filter(dataset2, Gene == gene)
-  
-  tibble_created <-full_join(data1, data2, by = "Pos") %>%
-    mutate(., Counts = Counts.x + Counts.y) %>%
-    select( Pos, Counts) 
-  names(tibble_created) <- gene
-  return(tibble_created)
-}
-
-joining_datasets(mapped_A_genes_CHX, mapped_A_genes_none, "YGR094W")
-
-map(test_orfs, joining_datasets, mapped_A_genes_CHX, mapped_A_genes_none)
-
-joining_datasets <-function(dataset1, dataset2, gene){
-  dataset1 <- dataset1[[gene]]
-  dataset2 <- dataset2[[gene]]
-  
-  full_join(dataset1, dataset2, by = "Pos") %>%
-    return()
-}
+# mapped_A_genes_CHX <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_CHX, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
+# 
+# mapped_A_genes_CHX <-bind_rows(mapped_A_genes_CHX,.id = "Gene")
+# 
+# mapped_A_genes_none <- A_mapped_genes(test_orfs, dataset = dataset_G2014, hdf5file = hdf5file_none, gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length)
+# 
+# mapped_A_genes_none <-bind_rows(mapped_A_genes_none,.id = "Gene")
+# 
+# joining_datasets <-function(dataset1, dataset2, gene){
+#   data1 <- filter(dataset1, Gene == gene)
+#   data2 <- filter(dataset2, Gene == gene)
+#   
+#   tibble_created <-full_join(data1, data2, by = "Pos") %>%
+#     mutate(., Counts = Counts.x + Counts.y) %>%
+#     select( Pos, Counts) 
+#   names(tibble_created) <- gene
+#   return(tibble_created)
+# }
+# 
+# joining_datasets(mapped_A_genes_CHX, mapped_A_genes_none, "YGR094W")
+# 
+# map(test_orfs, joining_datasets, mapped_A_genes_CHX, mapped_A_genes_none)
+# 
+# joining_datasets <-function(dataset1, dataset2, gene){
+#    dataset1 <- dataset1[[gene]]
+#    dataset2 <- dataset2[[gene]]
+#   
+#   full_join(dataset1, dataset2, by = "Pos") %>%
+#     return()
+# }
 
 ###############
 
@@ -559,7 +560,8 @@ comparing_UTR_test_1 <-comparing_UTR_test%>%
 ggplot(comparing_UTR_test_1, aes(x = Condition,group = 1, y= Reads, color = Gene)) +
   geom_point() +
   geom_line() +
-  geom_text_repel(aes(label = Reads))
+  geom_text_repel(aes(label = round(Reads, digits = 3)))
+
 
 # ####
 # ### calculate read counts at each position for all genes 
@@ -686,14 +688,26 @@ plotting_multiple <- function(input_data, gene_names) {
 # 
 two_in_one_plots <- function(sample1, sample2, gene, cond1_name, cond2_name) {
   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
-    geom_density(data = sample1, stat="identity", aes(color = "WT_3AT")) +
-    geom_density(data = sample2, stat="identity", aes(color = "WT_CHX")) +
-    scale_x_continuous(limits = c(-100,50), expand = c(0, 0)) +
+    geom_density(data = sample1, stat="identity", aes(color = "VEG")) +
+    geom_density(data = sample2, stat="identity", aes(color = "MEIOSIS")) +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "Read count", x = "Position") +
     theme_classic() +
     ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) +
-    scale_color_manual(values = c(WT_3AT = "red", WT_CHX = "blue"))
+    scale_color_manual(values = c(VEG = "red", MEIOSIS = "blue"))
+}
+
+three_in_one_plots <- function(sample1, sample2, sample3, gene) {
+  ggplot2::ggplot(sample1,aes(x=Pos, y=Counts)) +
+    geom_density(data = sample1, stat="identity", aes(color = "VEG")) +
+    geom_density(data = sample2, stat="identity", aes(color = "ANAPH_I")) +
+    geom_density(data = sample3, stat="identity", aes(color = "SPORE")) +
+    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs(y= "Read count", x = "Position") +
+    theme_classic() +
+    scale_color_manual(values = c(VEG = "red", ANAPH_I = "blue", SPORE = "green" ))
 }
 
 
@@ -757,8 +771,7 @@ efficiency_barplot <- function(data) {
     labs(y= "Footprint density", x = "Region (mRNA)") +
     # ggtitle("quantification across all genes") +
     scale_y_continuous(expand = c(0,0)) +
-    scale_x_discrete(limits = positions) +
-    geom_text_repel(aes(label = count))
+    scale_x_discrete(limits = positions) 
   
   ## that gives an overall view of all read counts at each region
 }
@@ -766,7 +779,6 @@ efficiency_barplot <- function(data) {
 efficiency_barplot(WT_NONE_sev_UTR_AUG_plot)
 
 
-geom_text_repel(aes(label = Reads))
 # 
 efficiency_barplot_each_gene <- function(data, gene){
   positions <- c( "5'UTR", "AUG")
@@ -775,7 +787,7 @@ efficiency_barplot_each_gene <- function(data, gene){
   ggplot(value, aes(x = region, y = count, fill = region)) +
     geom_col(show.legend = FALSE) +
     theme_classic() +
-    labs(y= "Read count", x = "Region (mRNA)") +
+    labs(y= "Footprint density (CPMB)", x = "Region (mRNA)") +
     ggtitle(paste0(gene)) +
     scale_y_continuous(expand = c(0,0)) +
     scale_x_discrete(limits = positions)
@@ -809,6 +821,7 @@ all_regions_together <- function(genes, gene_names) {
   region3 <-sum_uAUG_multiple(genes, uAUG_start = -15, uAUG_end = 0)
   region4 <-sum_uAUG_multiple(genes, uAUG_start = -60, uAUG_end = 0)
   region5 <-sum_uAUG_multiple(genes, uAUG_start = -120, uAUG_end = -60)
+  region6  <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = -120)
   
   # region5 <- sum_uAUG_multiple(genes, gene_names, uAUG_start = -15, uAUG_end = 10) %>% unlist(as.numeric())
   
@@ -831,7 +844,7 @@ plotted_barplots(WT_NONE_sev_regions)
 
 # # ## that gives an overall view of all read counts at each region 
 plotted_barplots <- function(data) {
-  positions <- c( "5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60")
+  positions <- c( "5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60", "-250:-60")
   
   ggplot(data,aes(x=region, y = read, fill = region)) +
     geom_col(show.legend = FALSE) +
@@ -846,92 +859,20 @@ plotted_barplots <- function(data) {
 # 
 # ## Individual for each gene
 plotted_each_barplot <- function(data, gene){
-  positions <- c( "-250:0", "-15:10", "-15:-0", "-60:0", "-120:-60")
+  positions <- c( "5'UTR", "AUG", "-15:-0", "-60:0", "-120:-60","-250:-60")
   value <-filter(data, genes == gene)
   
-  ggplot(value,aes(x = region, y = count, fill = region)) +
-    geom_col() +
+  ggplot(value,aes(x = region, y = read, fill = region)) +
+    geom_col(show.legend = FALSE) +
     theme_classic() +
-    labs(y= "Read count", x = "Region (mRNA)") +
+    labs(y= "Footprint density (CPMB)", x = "Region (mRNA)") +
     ggtitle(paste0(gene)) +
     scale_y_continuous(expand = c(0,0)) +
     scale_x_discrete(limits = positions)
 }
 
 
-# ############################################## seems we're not using it at the end but still useful 
-# sliding_windows <- function(tibble) {
-#   RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
-#     tibble::enframe(name = NULL) %>%
-#      t()
-# }
-# 
-# sliding_windows_multiple <- function(tibble, genes){
-#   names(tibble) <- genes
-#   joined <-purrr::map(tibble, sliding_windows ) 
-# 
-#   
-#   bind_rows(joined) %>%
-#     set_rownames( value = c(seq(from = -250, to = 20, by = 30)))  %>%
-#     t() %>%
-#     return()  ###add a column instead of the set_rownames and you want these to be ranges (from -250 to -230)
-# }
-# 
-# xxxx <-sliding_windows_multiple(mapped_A_genes, test_orfs)
-# 
-# selected <- xxxx[xxxx > 10]
-# 
-# (xxxx > 0) * 1.0 
-# 
-# if (xxxx > 10 ) {
-#   (xxxx*10)
-# }
-# empty <- list()
-# 
-# #dziala tylko nie wiem jak wsadzic te values do nowej matrycy wraz ze wspolrzednymi 
-# for (i in 1:nrow(xxxx)) {
-#    for (j in 2:ncol(xxxx)) {
-#     if(xxxx[i,j] >= 10) {
-#       
-#     }}}
-# 
-#     # xxxx >0
-#     # -250  -220  -190  -160  -130  -100   -70   -40   -10    20
-#     # YCR012W FALSE FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE
-#     # YEL009C FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE FALSE FALSE FALSE
-#     # YOR303W FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE  TRUE  TRUE
-#     # YOL130W FALSE FALSE FALSE FALSE FALSE  TRUE FALSE FALSE FALSE FALSE
-#     # YGR094W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE  TRUE
-#     # YML065W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE
-# 
-# 
-# 
-# xxxx > 10 
-#   
-# xxxx_selected <-which( xxxx > 10, arr.ind=T )
-# #          row col
-# # YEL009C   2   3
-# # YOR303W   3   6
-# # YCR012W   1   7
-# # YOR303W   3   7
-# # YCR012W   1   8
-# # YCR012W   1   9
-# # YCR012W   1  10
-# 
-# fastQ <- "G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
-# c<-read.FASTA(fastQ, type = "DNA")
-# # c$YAL068C
-# # [1] 88 28 28 18 88 18 48 88 88 88 48 88 18 18 18 88 18 48 88 18 18 28 48 18 18 28 88 48 88 88 88 28 [33] 88 88 48 88 48 28 88 18 28 18 28 28 88 18 88 48 88 48 88 18 88 88 18 48 88 48 88 18 18 48 18 48 [65] 18 48 88 88 88 48 88 18 48 88 48 88 18 88 18 88 48 88 48 88 88 18 88 18 18 18 48 88 18 48 88 48
-# 
-# b <- read.dna(fastQ, format = "fasta",
-#          nlines = 0, comment.char = "#",
-#          as.character = TRUE, as.matrix = TRUE)
-# # $YDR122W   list
-# # [1] "t" "t" "t" "t" "g" "a" "g" "a" "t" "t" "t" "a" "c" "t" "t" "c" "g" "t" "t" "a" "t" "t" "a"
-# # [24] "t" "a" "a" "g" "g" "a" "c" "a" "t" "a" "c" "g" "g" "t" "a" "a" "c" "c" "t" "a" "g" "g" "c"
-# # [47] "t" "a" "g" "t" "t" "a" "a" "c" "a" "t" "a" "a" "t" "t" "a" "g" "t" "t" "g" "t" "c" "a" "c"
-# # [70] "c" "c" "t" "t" "c" "g" "c" "c" "c" "c" "c" "c" "t" "a" "c" "c" "c" "t" "a" "t" "c" "g" "g"
-# #
+
 # ##########################################################################################
 # 
 ### Comparison of 5'UTR for all genes between 3 conditions
@@ -957,6 +898,7 @@ UTR5_3_conditions_all <-function(condition1_UTR, condition2_UTR, condition3_UTR,
     labs(x= "Stage", y = "5'UTR Footprint density (CPMB)")
   return(plot_UTR)
 }
+
 ##### for all genes
 all_genes_UTR_AUG <-function(condition1_UTR){
   UTR <- sum(condition1_UTR$Counts_UTR5)
@@ -973,7 +915,7 @@ all_genes_UTR_AUG <-function(condition1_UTR){
     # scale_x_discrete(labels=c("WT_3AT","WT_CHX", "WT_NONE")) +
     scale_y_continuous(expand = c(0,0)) +
     theme_classic() +
-    labs(x= "Stage", y = "5'UTR Footprint density (CPMB)")
+    labs(x= "Region", y = "5'UTR Footprint density (CPMB)")
   return(plot_UTR)
 }
 all_genes_UTR_AUG(VEG_ALL_GENES_5UTR)
@@ -1083,3 +1025,76 @@ compared_UTR_single<-function(condition1, condition2, condition3, gene){
 
 
 ##################################### MISCALLENAEOUS#######################
+# ############################################## seems we're not using it at the end but still useful 
+# sliding_windows <- function(tibble) {
+#   RcppRoll::roll_sum(tibble$Counts, n =30, by = 30) %>% 
+#     tibble::enframe(name = NULL) %>%
+#      t()
+# }
+# 
+# sliding_windows_multiple <- function(tibble, genes){
+#   names(tibble) <- genes
+#   joined <-purrr::map(tibble, sliding_windows ) 
+# 
+#   
+#   bind_rows(joined) %>%
+#     set_rownames( value = c(seq(from = -250, to = 20, by = 30)))  %>%
+#     t() %>%
+#     return()  ###add a column instead of the set_rownames and you want these to be ranges (from -250 to -230)
+# }
+# 
+# xxxx <-sliding_windows_multiple(mapped_A_genes, test_orfs)
+# 
+# selected <- xxxx[xxxx > 10]
+# 
+# (xxxx > 0) * 1.0 
+# 
+# if (xxxx > 10 ) {
+#   (xxxx*10)
+# }
+# empty <- list()
+# 
+# #dziala tylko nie wiem jak wsadzic te values do nowej matrycy wraz ze wspolrzednymi 
+# for (i in 1:nrow(xxxx)) {
+#    for (j in 2:ncol(xxxx)) {
+#     if(xxxx[i,j] >= 10) {
+#       
+#     }}}
+# 
+#     # xxxx >0
+#     # -250  -220  -190  -160  -130  -100   -70   -40   -10    20
+#     # YCR012W FALSE FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE
+#     # YEL009C FALSE FALSE  TRUE  TRUE FALSE FALSE FALSE FALSE FALSE FALSE
+#     # YOR303W FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE FALSE  TRUE  TRUE
+#     # YOL130W FALSE FALSE FALSE FALSE FALSE  TRUE FALSE FALSE FALSE FALSE
+#     # YGR094W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE  TRUE
+#     # YML065W FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE
+# 
+# 
+# 
+# xxxx > 10 
+#   
+# xxxx_selected <-which( xxxx > 10, arr.ind=T )
+# #          row col
+# # YEL009C   2   3
+# # YOR303W   3   6
+# # YCR012W   1   7
+# # YOR303W   3   7
+# # YCR012W   1   8
+# # YCR012W   1   9
+# # YCR012W   1  10
+# 
+# fastQ <- "G-Sc_2014/input/yeast_CDS_w_250utrs.fa"
+# c<-read.FASTA(fastQ, type = "DNA")
+# # c$YAL068C
+# # [1] 88 28 28 18 88 18 48 88 88 88 48 88 18 18 18 88 18 48 88 18 18 28 48 18 18 28 88 48 88 88 88 28 [33] 88 88 48 88 48 28 88 18 28 18 28 28 88 18 88 48 88 48 88 18 88 88 18 48 88 48 88 18 18 48 18 48 [65] 18 48 88 88 88 48 88 18 48 88 48 88 18 88 18 88 48 88 48 88 88 18 88 18 18 18 48 88 18 48 88 48
+# 
+# b <- read.dna(fastQ, format = "fasta",
+#          nlines = 0, comment.char = "#",
+#          as.character = TRUE, as.matrix = TRUE)
+# # $YDR122W   list
+# # [1] "t" "t" "t" "t" "g" "a" "g" "a" "t" "t" "t" "a" "c" "t" "t" "c" "g" "t" "t" "a" "t" "t" "a"
+# # [24] "t" "a" "a" "g" "g" "a" "c" "a" "t" "a" "c" "g" "g" "t" "a" "a" "c" "c" "t" "a" "g" "g" "c"
+# # [47] "t" "a" "g" "t" "t" "a" "a" "c" "a" "t" "a" "a" "t" "t" "a" "g" "t" "t" "g" "t" "c" "a" "c"
+# # [70] "c" "c" "t" "t" "c" "g" "c" "c" "c" "c" "c" "c" "t" "a" "c" "c" "c" "t" "a" "t" "c" "g" "g"
+# #
