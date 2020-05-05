@@ -1,6 +1,7 @@
 
 ############################################################################################
 ##set up##
+#here
 # setwd("/Users/Ania/Desktop/Szkoła/4th year/Dissertation/gene_graphs/")
 library(here)
 here()
