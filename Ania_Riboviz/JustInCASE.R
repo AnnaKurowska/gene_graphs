@@ -43,9 +43,9 @@ hdf5file_CHX <- rhdf5::H5Fopen(hd_file_CHX) # filehandle for the h5 file
 
 asite_disp_length_file <- "G-Sc_2014/input/asite_disp_length_yeast_standard.txt"
 
-# asite_disp_length <- readr::read_tsv(asite_disp_length_file,
-#                                      comment = "#"
-# )
+asite_disp_length <- readr::read_tsv(asite_disp_length_file,
+                                     comment = "#"
+)
 
 
 #Initial set ups
@@ -558,7 +558,10 @@ comparing_UTR_test_1 <-comparing_UTR_test%>%
   select("Gene","UTR_PRE_ENTRY_1","UTR_META_I_1","UTR_META_II_1") %>%
   gather(key = "Condition", value = "Reads", -Gene)
 
-ggplot(comparing_UTR_test_1, aes(x = Condition,group = 1, y= Reads, color = Gene)) +
+comparing_UTR_test_1$Condition <- as.factor(comparing_UTR_test_1$Condition)
+comparing_UTR_test_1$Gene <- as.factor(comparing_UTR_test_1$Gene)
+
+ggplot(comparing_UTR_test_1, aes(x = Condition, y= Reads, group = Gene,  color = Gene)) +
   geom_point() +
   geom_line() +
   geom_text_repel(aes(label = round(Reads, digits = 3)))
