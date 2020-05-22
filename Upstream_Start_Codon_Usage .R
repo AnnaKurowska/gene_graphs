@@ -22,7 +22,7 @@ library(ggrepel)
 readGFFAsDf <- purrr::compose(
   rtracklayer::readGFFAsGRanges,
   data.frame, 
-  as_tibble,
+  tibble::as_tibble,
   .dir = "forward" # functions called from left to right
 )
 
@@ -31,7 +31,7 @@ GetGeneReadsTotal <- function(gene, dataset, hdf5file) {
   rhdf5::H5Aread(rhdf5::H5Aopen(rhdf5::H5Gopen(hdf5file, paste0("/", gene, "/", dataset, "/reads")), "reads_total"))
 }
 
-#Creates a matrix from hdf5file
+#Used in GetGene functions.Creates a matrix from hdf5file. 
 GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
   hdf5file %>%
     rhdf5::H5Dopen(
@@ -41,31 +41,31 @@ GetGeneDatamatrix <- function(gene, dataset, hdf5file) {
     return()
 }
 
-# Takes value for start position of TL for matrix creation (no negative values e.g.: 1)
+# Used in GetGene functions. Takes value for start position of TL for matrix creation (no negative values e.g.: 1) 
 GetTLstart <- function(gene, gffdf) {
   gffdf %>% 
     dplyr::filter(Name == gene, type=="UTR5" ) %>% 
     dplyr::pull(start)
 }
 
-# Takes value for 3' end of the table (includes whole TL +50 nt of CDS)
+# Used in GetGene functions.Takes value for 3' end of the table (includes whole TL +50 nt of CDS)
 CDS3_end <- function(gene, gffdf) {
   gffdf %>% 
     dplyr::filter(Name == gene, type=="UTR5") %>% 
     dplyr::pull(end) + nnt_gene
 } 
 
-# Creates a matrix with number of columns that start at 5' TL and finish at 50'th NT of  CDS
+# Used in GetGene functions. Creates a matrix with number of columns that start at  TL and finish at 50'th NT of  CDS
 GetGeneDatamatrixTL <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   n_left5 <- GetTLstart(gene, gffdf) # column to start from (5'end)
   n_right3 <-CDS3_end(gene, gffdf)  # column to end with (3'end)
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
-  # data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
+
   return(data_mat_5start)
 }
-#### functions for A-site mapping
-## A-site mapping function. Calculate read A-site using a fixed displacement for a single read length
+
+## Used in GetGene functions. Calculates read A-site using a fixed displacement for a single read length
 CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
                                     read_length, asite_disp) {
   
@@ -75,7 +75,7 @@ CalcAsiteFixedOneLength <- function(reads_pos_length, min_read_length,
 }
 
 
-## A-site mapping function. Calculate read A-site using a fixed displacement for fixed read lengths
+## Used in GetGene functions. Calculates read A-site using a fixed displacement for fixed read lengths
 CalcAsiteFixed <- function(reads_pos_length, min_read_length,
                            asite_disp_length,
                            colsum_out = TRUE) {
@@ -105,6 +105,7 @@ CalcAsiteFixed <- function(reads_pos_length, min_read_length,
   }
 }
 
+# Used in GetGene functions. Finds positions relative to the canonical start codon 
 GetPosition <- function(x, startpos = 1)  {
   positions <- startpos:(startpos + ncol(x) - 1) 
   positions %>% 
@@ -112,7 +113,7 @@ GetPosition <- function(x, startpos = 1)  {
     magrittr::set_colnames("Pos")
 }  
 
-## Final A-site mapping function
+## Final GetGene function, opens H5 file, finds the A-site, normalizes for sequencing depth. Final output is a table with frequency of footprints at each position
 GetGene <- function(gene, dataset, hdf5file, gffdf,
                     nnt_gene, min_read_length, asite_disp_length,  snapdisp = 0L, scaling_factor) {
   
@@ -135,14 +136,14 @@ GetGene <- function(gene, dataset, hdf5file, gffdf,
     tibble::as_tibble() 
   
   norm_tibble <<- final_tibble %>%
-    mutate(., Normalized_Counts = apply(.[,"Counts"], 1, function(x) sum(x)/scaling_factor )) %>%
-    select(Pos, Normalized_Counts) %>%
-    set_colnames(c( "Pos", "Counts"))
+    dplyr::mutate(., Normalized_Counts = apply(.[,"Counts"], 1, function(x) sum(x)/scaling_factor )) %>%
+    dplyr::select(Pos, Normalized_Counts) %>%
+    magrittr::set_colnames(c( "Pos", "Counts"))
   return(norm_tibble)
   
 }
 
-##A-site mapping for multiple genes; output is an individual tibble for each gene
+##Iteration of GetGene(); output is an individual table for each gene
 GetGeneMultiple <- function(gene,
                             dataset,
                             hdf5file,
@@ -160,7 +161,7 @@ GetGeneMultiple <- function(gene,
                       nnt_gene,
                       min_read_length,
                       asite_disp_length,
-                      scaling_factor = 2.418605)
+                      scaling_factor)
   
   names(output) <- gene
   
@@ -169,20 +170,20 @@ GetGeneMultiple <- function(gene,
 }
 
 
-## A-site mapping for multiple genes; output is one tibble with cumulative count of reads at each position
+## Iteration of GetGene; output is one table with cumulative count of reads at each position
 GetGeneMeta <- function(gene, dataset, hdf5file, gffdf,
-                        min_read_length, asite_disp_length,
-                        scaling_factor) {
+                             min_read_length, asite_disp_length,
+                             scaling_factor) {
   
   output<- purrr::map(gene,
-                      GetGene,
+                      GetGeneCodonPosReads1dsnap,
                       dataset,
                       hdf5file,
                       gffdf,
                       nnt_gene,
                       min_read_length,
                       asite_disp_length,
-                      scaling_factor = 2.41)
+                      scaling_factor)
   
   names(output) <- gene
   
@@ -190,7 +191,7 @@ GetGeneMeta <- function(gene, dataset, hdf5file, gffdf,
     Reduce("+", .) %>%
     dplyr::select(Counts)
   
-  Pos <- output$YEL009C$Pos 
+  Pos <- output$YEL009C$Pos ### !!!
   
   Counts_Asite_mapped_all <-base::cbind(Pos, Counts) %>%
     tibble::as_tibble(.name_repair = "minimal")
@@ -199,18 +200,20 @@ GetGeneMeta <- function(gene, dataset, hdf5file, gffdf,
   
 }
 
+
+
 ## Combines 2 tables from GetGene or GetGeneMeta into one table 
 join_GetGeneData <-function(dataset1, dataset2){
   full_join(dataset1,dataset2, by = "Pos") %>%
-    mutate(., Counts = Counts.x + Counts.y) %>%
-    select(Pos, Counts)%>%
+    dplyr::mutate(., Counts = Counts.x + Counts.y) %>%
+    dplyr::select(Pos, Counts)%>%
     return()
 } 
 
 #### functions which take output from GetGene and GetGeneMultiple as input
 
-# Density in TL (-250:-5) and AUG (-5: 10)
-CanVsNon <- function(dataset) {
+# Calculates density in TL (-250:-5) and AUG (-5: 10), input: GetGene functions outputs
+FootprintDensity <- function(dataset) {
   
   TL <- bind_rows(dataset, .id = "Gene") %>%
     dplyr::filter( Pos >= -250, Pos < -5) %>%
@@ -222,14 +225,14 @@ CanVsNon <- function(dataset) {
     dplyr::group_by(Gene) %>%
     dplyr::summarise(Count_AUG = sum(Counts)/(length(-5:10)-1))
   
-  TL_AUG <-dplyr::full_join(TL, AUG, by = "Gene") 
+  TL_AUG <-dplyr::full_join(TL, AUG, by = "Gene")
   return(TL_AUG)
   
 }
 
-###Scatter plot showing the TL/AUG ratio, input: CanVsNon output
+###Scatter plot showing the TL/AUG density ratio, input: FootprintDensity output
 TLvsAUGscatter <-function(CanNonData){
-  ggplot(CanNonData, aes(x = Count_AUG, y = Count_TL)) +
+  ggplot2::ggplot(CanNonData, aes(x = Count_AUG, y = Count_TL)) +
     geom_point() +
     scale_y_log10() +
     scale_x_log10() +
@@ -239,21 +242,21 @@ TLvsAUGscatter <-function(CanNonData){
   
 }
 
-##### TL density for same gene across different stages, input: output of CanVsNon data for each stage
+##### Displays TL density for each gene at different stages, input: output of FootprintDensity data for each stage
 
 TL_AUG_Regulation <-function(CanNonData1, CanNonData2, CanNonData3){
   
   comparing_TL_test <- full_join(CanNonData1, CanNonData2, by = "Gene") %>%
     full_join(CanNonData3, by = "Gene") %>%
-    set_colnames(c("Gene", "TL_WT_NONE", "AUG_WT_NONE", "TL_WT_CHX","AUG_WT_CHX", "TL_WT_3AT", "AUG_WT_3AT" )) 
+    magrittr::set_colnames(c("Gene", "TL_WT_NONE", "AUG_WT_NONE", "TL_WT_CHX","AUG_WT_CHX", "TL_WT_3AT", "AUG_WT_3AT" )) 
   
   comparing_TL_test <-comparing_TL_test%>%
-    select("Gene","TL_WT_NONE","TL_WT_CHX","TL_WT_3AT") %>%
-    gather(key = "Condition", value = "Reads", -Gene)
+    dplyr::select("Gene","TL_WT_NONE","TL_WT_CHX","TL_WT_3AT") %>%
+    tidyr::gather(key = "Condition", value = "Reads", -Gene)
   
   comparing_TL_test$Condition <- factor(comparing_TL_test$Condition, level=unique(comparing_TL_test$Condition))  
   
-  ggplot(comparing_TL_test, aes(x = Condition, group = Gene, y= Reads, color = Gene)) +
+  ggplot2::ggplot(comparing_TL_test, aes(x = Condition, group = Gene, y= Reads, color = Gene)) +
     geom_point() +
     geom_line() +
     scale_y_continuous(expand = c(0,0)) +
@@ -261,7 +264,7 @@ TL_AUG_Regulation <-function(CanNonData1, CanNonData2, CanNonData3){
   
 }
 
-## distribution plot, input: output from GetGene or GetGeneMeta
+## Read distribution plot, input: output from GetGene or GetGeneMeta
 
 DistributionPlot<- function(input_data) {
   
@@ -275,16 +278,15 @@ DistributionPlot<- function(input_data) {
 }
 
 
-## Multiple distribution plots, input: output from GetGeneMultiple, GetGene or GetGeneMeta
+## Iteration of DistributionPlot, input: output from GetGeneMultiple, GetGene or GetGeneMeta
 
 MultipleDistributionPlots <- function(input_data, gene_names) {
   purrr :: map(input_data, DistributionPlot) %>%
-    ggarrange(plotlist = ., label = gene_names) %>%
+    ggarrange(plotlist = ., labels = gene_names) %>%
     return()
 }
 
-
-## distribution plot of 2 samples, input: GetGene,GetGeneMultiple (1 gene only) or GetGeneMeta
+## Read distribution plot of 2 samples, input: GetGene or GetGeneMeta
 
 TwoPlotsDistribution <- function(sample1, sample2, gene, cond1_name, cond2_name) {
   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts, alpha = 0.5) ) +
@@ -298,7 +300,7 @@ TwoPlotsDistribution <- function(sample1, sample2, gene, cond1_name, cond2_name)
     theme(legend.title = element_blank())
 }
 
-## distribution plot of 3 samples, input: GetGene,GetGeneMultiple (1 gene only) or GetGeneMeta
+## Distribution plot of 3 samples, input: GetGene or GetGeneMeta
 
 ThreePlotsDistribution <- function(sample1, sample2, sample3, cond1_name, cond2_name, cond3_name, gene) {
   ggplot2::ggplot(sample1,aes(x=Pos, y=Counts, alpha = 0.5)) +
@@ -309,54 +311,19 @@ ThreePlotsDistribution <- function(sample1, sample2, sample3, cond1_name, cond2_
     scale_y_continuous(expand = c(0,0)) +
     labs(y= "CPM", x = "Position") +
     theme_classic() +
-    scale_color_manual(values = c(VEG = "red", ANAPH_I = "blue", SPORE = "black" ))
+    ggtitle(paste0(gene, ":", cond1_name, " vs ", cond2_name)) 
 }
 
 
-##Sums read counts and normalizes them for density at a selected region for 1 gene, input GetGene, GetGeneMeta
-sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
-  datatibble %>%
-    dplyr::filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
-    dplyr::summarise(sum_read_counts_uAUG=sum(Counts)/(length(uAUG_start:uAUG_end)-1)) 
-}
-
-##Sums read counts and normalizes them for density at a selected region for many genes, input GetGene, GetGeneMultiple, GetGeneMeta
-sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
-  sapply(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
-    return()
-}
-
-
-### Used in GetTLvsAUG. Calculates footprint density in the TL and AUG, input GetGene, GetGeneMultiple or GetGeneMeta. 
-
-CDS_TL <- function(genes, gene_names) {
-  table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
-  
-  
-  region1 <-sum_uAUG_multiple(genes, uAUG_start = -250, uAUG_end = -5)
-  region2 <- sum_uAUG_multiple(genes, uAUG_start = -5, uAUG_end = 10)
-  
-  
-  result <-base::cbind(table_genes, region1, region2) %>%
-    as_tibble() %>%
-    set_colnames(c("genes","TL", "AUG"))
-  
-  result_new <- result %>%
-    tidyr::gather( key = "region", value = "count", -genes)
-  result_new$count <- as.numeric(result_new$count)
-  return(result_new)
-}
-
-
-# efficiency bar plot (TL and AUG) for all input genes, includes the CDS_TL step; input: GetGene, GetGeneMultiple or GetGeneMeta
-GetTLvsAUG <- function(genes, gene_names) {
-  CDS_TL_data <-CDS_TL(genes, gene_names) %>%
-    tidyr::gather( key = "region", value = "count", -genes)
+# Translation efficiency bar plot of TL and AUG for all input genes, input: GetGene, GetGeneMultiple or GetGeneMeta
+GetTLvsAUG <- function(genes) {
+  CDS_TL_data <-FootprintDensity(genes)  %>%
+    tidyr::gather( key = "region", value = "count", -Gene)
   CDS_TL_data$count <- as.numeric(CDS_TL_data$count)
   
-  positions <- c("TL", "AUG")
+  positions <- c("Count_TL", "Count_AUG")
   
-   barplots<-ggplot(CDS_TL_data, aes(x=region, y = count, fill = region )) +
+  barplots<-ggplot2::ggplot(CDS_TL_data, aes(x=region, y = count, fill = region )) +
     geom_col(show.legend = FALSE) +
     theme_classic() +
     labs(y= "CPMB", x = "Region (mRNA)") +
@@ -365,9 +332,21 @@ GetTLvsAUG <- function(genes, gene_names) {
   return(barplots)
 }
 
-GetTLvsAUG(genes = exemplary_genes_anaphase[[1]],gene_names = exemplary_genes[[1]])
 
-#Creates a table with read density at different regions, input:GetGene,GetGeneMultiple (1 gene only) or GetGeneMeta
+##Used in sum_uAUG_multiple. Sums read counts and normalizes them for density at a selected region for 1 gene, input: GetGene, GetGeneMeta
+sum_uAUG <- function(datatibble, uAUG_start, uAUG_end){
+  datatibble %>%
+    dplyr::filter(Pos >= uAUG_start, Pos <= uAUG_end) %>%
+    dplyr::summarise(sum_read_counts_uAUG=sum(Counts)/(length(uAUG_start:uAUG_end)-1)) 
+}
+
+##Used in UpstreamRegionsCount. Sums read counts and normalizes them for density at a selected region for many genes, input: GetGene, GetGeneMultiple, GetGeneMeta
+sum_uAUG_multiple<- function(genes, uAUG_start, uAUG_end) {
+  sapply(genes, sum_uAUG, uAUG_start, uAUG_end) %>%
+    return()
+}
+
+#Creates a table with read density at different regions for each gene, input:GetGene,GetGeneMultiple (1 gene only) or GetGeneMeta
 
 UpstreamRegionsCount <- function(genes, gene_names) {
   table_genes <-as.character((paste0(gene_names)))  #why does it make it a factor?
@@ -381,63 +360,41 @@ UpstreamRegionsCount <- function(genes, gene_names) {
   
   
   TL_regions <-base::cbind(table_genes, region1, region2, region3, region4, region5, region6) %>%
-    as_tibble() %>%
+    tibble::as_tibble() %>%
     magrittr::set_colnames(c("genes","TL", "AUG", "-15:-0", "-60:0", "-120:-60", "-250:-60")) %>%
-    tidyr::gather( key = "region", value = "read", -genes)
+    tidyr::gather(key = "region", value = "read", -genes)
   TL_regions$read <- as.numeric(TL_regions$read)
   
   return(TL_regions)
 }
 
-
-##Bar plots showing read density at each region for all selected genes (all or multiple), input: output of all_regions_together
+##Bar plots showing read density at each region for all selected genes (all or multiple), input: output of UpstreamRegionsCount
 Different_Regions_barplot <- function(data) {
   
-  ggplot(data, aes(x = region, y = read, fill = region)) +
+  ggplot2::ggplot(data, aes(x = region, y = read, fill = region)) +
     geom_col(show.legend = FALSE) +
     theme_classic() +
     labs(y= "CPMB", x = "Region (mRNA)") +
     ggtitle("quantification across all genes") +
     scale_y_continuous(expand = c(0,0))
-  # scale_x_discrete(limits = positions)
-  
+
 }
 
-##Bar plots showing read density at each region for one gene, input: output of all_regions_together
+##Bar plots showing read density at each region for one gene, input: output of UpstreamRegionsCount
 
-plotted_each_barplot <- function(data, gene) {
+Different_Regions_barplot_1gene <- function(data, gene) {
   value <-filter(data, genes == gene)
   
-  ggplot(value, aes(x = region, y = read, fill = region)) +
+  ggplot2::ggplot(value, aes(x = region, y = read, fill = region)) +
     geom_col(show.legend = FALSE) +
     theme_classic() +
     labs(y= "CPMB", x = "Region (mRNA)") +
     ggtitle(paste0(gene)) +
     scale_y_continuous(expand = c(0,0)) 
-  # scale_x_discrete(limits = positions)
+
 }
 
-## Comparison of TL to AUG for all or multiple selected genes in 1 condition, input: Output of CanVsNon
-
-all_genes_TL_AUG <-function(condition1_TL){
-  TL <- sum(condition1_TL$Count_TL)
-  AUG <- sum(condition1_TL$Count_AUG)
-  
-  Condition <- c("TL", "AUG")
-  for_plot_TL <- rbind(TL, AUG) %>%
-    as_tibble %>%
-    set_colnames("TL") %>%
-    cbind(Condition)
-  
-  plot_TL <-ggplot(for_plot_TL) +
-    geom_bar(aes(x=Condition, y= TL, fill = Condition), stat="identity", show.legend = FALSE ) +
-    scale_y_continuous(expand = c(0,0)) +
-    theme_classic() +
-    labs(x= "Region", y = "TL (CPMB) ")
-  return(plot_TL)
-}
-
-### Comparison of TL density for all genes between 3 conditions, input: output of CanVsNon 
+### Comparison of TL density for all genes between 3 conditions, input: output of FootprintDensity 
 
 TL_3_conditions_all <-function(condition1_TL, condition2_TL, condition3_TL, name1, name2, name3){
   condition1 <- sum(condition1_TL$Count_TL)
@@ -447,13 +404,13 @@ TL_3_conditions_all <-function(condition1_TL, condition2_TL, condition3_TL, name
   Condition <- paste0(c(name1, name2, name3))
   # Condition <- c("WT NONE", "WT CHX", "WT 3AT")
   for_plot_TL <- rbind(condition1, condition2, condition3) %>%
-    as_tibble %>%
-    set_colnames("TL") %>%
-    cbind(Condition)
+    tibble::as_tibble(.name_repair = "unique") %>%
+    magrittr::set_colnames("TL") %>%
+    base::cbind(Condition)
   
   for_plot_TL$Condition <- factor(for_plot_TL$Condition, levels=unique(for_plot_TL$Condition))  
   
-  plot_TL <-ggplot(for_plot_TL) +
+  plot_TL <-ggplot2::ggplot(for_plot_TL) +
     geom_bar(aes(x=Condition, y= TL, fill = Condition), stat="identity", show.legend = FALSE ) +
     # scale_x_discrete(labels=c("WT_3AT","WT_CHX", "WT_NONE")) +
     scale_y_continuous(expand = c(0,0)) +
@@ -462,16 +419,14 @@ TL_3_conditions_all <-function(condition1_TL, condition2_TL, condition3_TL, name
   return(plot_TL)
 }
 
+### Bar plots comparing TL for 1 gene between 3 conditions, input: output of FootprintDensity  
 
-TL_3_conditions_all(gene1_scatter,gene2_scatter, gene3_scatter, name1 = "ves", "x", "z")
-
-### Barplot Comparison of TL for 1 gene between 3 conditions, input: output of CanVsNon  
 compared_TL_single<-function(condition1, condition2, condition3, gene){
   
   search_for_TL <- function(condition, gene){
     condition %>%
-      filter(Gene == gene ) %>%
-      select(Count_TL) %>%
+      dplyr::filter(Gene == gene ) %>%
+      dplyr::select(Count_TL) %>%
       pull
   }
   
@@ -485,14 +440,13 @@ compared_TL_single<-function(condition1, condition2, condition3, gene){
 
   for_plot <- rbind(TL1,TL2,TL3) %>%
     # set_colnames("TL") %>%
-    cbind(Condition) %>%
-    as_tibble() %>%
-    set_colnames(c("x", "TL", "Condition")) %>%
-    select(TL, Condition) 
+    base::cbind(Condition) %>%
+    tibble::as_tibble() %>%
+    magrittr::set_colnames(c("TL", "Condition")) 
   for_plot$TL <-as.numeric(for_plot$TL)
 
-  plot_TL <-ggplot(for_plot) +
-    geom_bar(aes(x=Condition, y= TL, fill = Condition), stat="identity",show.legend = FALSE ) +
+  plot_TL <-ggplot2::ggplot(for_plot) +
+    ggplot2::geom_bar(aes(x=Condition, y= TL, fill = Condition), stat="identity",show.legend = FALSE ) +
     scale_y_continuous(expand = c(0,0)) +
     theme_classic() +
     labs(x= "Condition", y = "CPMB TL") +
@@ -502,31 +456,31 @@ compared_TL_single<-function(condition1, condition2, condition3, gene){
   
 }
 
-##function used within TL_AUG_plot_correlation and TL_AUG_correlation; input: output of CanVsNon
+##function used within TL_AUG_plot_correlation and TL_AUG_correlation; input: output of FootprintDensity
 
 Efficiency_preparation<- function(condition1, condition2, condition3){
   
   comparing_genes_stages <- full_join(condition1, condition2, by = "Gene") %>%
-    full_join(condition3, by = "Gene") %>%
-    set_colnames(c("Gene", "VEG_TL", "VEG_AUG", "ANAPH_I_TL","ANAPH_I_AUG", "SPORE_TL","SPORE_AUG" )) 
+    full_join(condition3, by = "Gene")%>%
+    magrittr::set_colnames(c("Gene", "VEG_TL", "VEG_AUG", "ANAPH_I_TL","ANAPH_I_AUG", "SPORE_TL","SPORE_AUG" )) 
   
   comparing_genes_stages_TL <-comparing_genes_stages %>%
-    select("Gene","VEG_TL","ANAPH_I_TL","SPORE_TL") %>%
-    set_colnames(c("Gene", "VEG", "ANAPH_I", "SPORE")) %>%
-    gather(key = "Condition", value = "Reads_TL", -Gene) 
+    dplyr:: select("Gene","VEG_TL","ANAPH_I_TL","SPORE_TL") %>%
+    magrittr::set_colnames(c("Gene", "VEG", "ANAPH_I", "SPORE")) %>%
+    tidyr::gather(key = "Condition", value = "Reads_TL", -Gene) 
   
   comparing_genes_stages_AUG <-comparing_genes_stages %>%
-    select("Gene","VEG_AUG","ANAPH_I_AUG","SPORE_AUG") %>%
-    set_colnames(c("Gene", "VEG", "ANAPH_I", "SPORE")) %>%
-    gather(key = "Condition", value = "Reads_AUG", -Gene)
+    dplyr:: select("Gene","VEG_AUG","ANAPH_I_AUG","SPORE_AUG") %>%
+    magrittr::set_colnames(c("Gene", "VEG", "ANAPH_I", "SPORE")) %>%
+    tidyr::gather(key = "Condition", value = "Reads_AUG", -Gene)
   
   combined_TL_AUG <- right_join(comparing_genes_stages_TL, 
                                 comparing_genes_stages_AUG, by = c("Gene","Condition"))
   
   return(combined_TL_AUG)
 }
-somethin2_scatter
-### Outputs a figure with TL and AUG footprint densities across 3 conditions, input: output of CanVsNon. used for 1 gene only
+
+### Outputs a figure with TL and AUG footprint densities across 3 conditions, input: output of FootprintDensity. used for 1 gene only
 
 Efficiency_AUG_TL <- function(condition1, condition2, condition3, gene, condition_name1,condition_name2, condition_name3 ){
   
@@ -538,7 +492,7 @@ Efficiency_AUG_TL <- function(condition1, condition2, condition3, gene, conditio
   
   prepared_table$Condition <- factor(prepared_table$Condition, levels=unique(prepared_table$Condition))
   
-  plot <-ggplot(prepared_table) +
+  plot <-ggplot2::ggplot(prepared_table) +
     geom_point(aes(x = Condition, group = Gene, y= Reads_AUG, color = "AUG" )) +
     geom_line(aes(x = Condition, group = Gene, y= Reads_AUG, color = "AUG")) +
     geom_point(aes(x = Condition, group = Gene, y= Reads_TL, color = "TL")) +
@@ -552,7 +506,7 @@ Efficiency_AUG_TL <- function(condition1, condition2, condition3, gene, conditio
   
 }
 
-##calculates correlation between the TL and AUG densities across 3 conditions, input: output of CanVsNon
+##calculates correlation between the TL and AUG densities across 3 conditions, input: output of FootprintDensity
 TL_AUG_correlation <- function(condition1, condition2, condition3){
   
   prepared_table <- Efficiency_preparation(condition1, condition2, condition3)
@@ -561,11 +515,10 @@ TL_AUG_correlation <- function(condition1, condition2, condition3){
     return()
 }
 
-# ################### A SITE MAPPING #########
+# ################### Function without A SITE MAPPING #########
 
-## to be used in GetGeneDatamatrixTL_non_A
-TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
-  # CHECK startpos/off-by-one
+## Used in GetGeneDatamatrixTL_non_A to create a table with footprint frequency at each position. Normalizes for sequencing depth.
+TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene, scaling_factor) {
   positions <- startpos:(startpos + ncol(x) - 1)
   readlengths <- startlen:(startlen + nrow(x) - 1)
   x %>%
@@ -575,54 +528,35 @@ TidyDatamatrix <- function(x, startpos = 1, startlen = 1, gene) {
     tidyr::gather(-ReadLen, key = "Pos", value = "Counts", convert = FALSE) %>%
     dplyr::mutate(Pos = as.integer(Pos), Counts = as.integer(Counts)) %>%
     dplyr::group_by(Pos) %>%
-    dplyr::summarise(Counts=sum(Counts))
+    dplyr::summarise(Counts=sum(Counts)/scaling_factor)
 }
-# 
-# final function from raw data processing to data visualization
+
+# # Used in no_A_site_mapping  Creates a matrix with number of columns that start at  TL and finish at 50'th NT of  CDS
 GetGeneDatamatrixTL_non_A <- function(gene, dataset, hdf5file, gffdf, nnt_gene) {
   data_mat_all <- GetGeneDatamatrix(gene, dataset, hdf5file)
   n_left5 <- GetTLstart(gene, gffdf) # column to start from (5'end)
-  n_right3 <- TL_length(gene, gffdf) + nnt_gene # column to end with (3'end)
+  n_right3 <- CDS3_end(gene, gffdf) # column to end with (3'end)
   data_mat_5start <- data_mat_all[, n_left5 : n_right3]
   data_mat_5start <- tibble::as_tibble(data_mat_5start, .name_repair="minimal")
   return(data_mat_5start)
 }
 
-TL_table <- function(gene) {
+# Equivalent of GetGeneMeta(), which does not identify the A-site. Used for comparison of data
+no_A_site_mapping <- function(gene) {
   lapply(gene,
          function(gene)
            GetGeneDatamatrixTL_non_A(gene,
-                                       dataset,
-                                       hdf5file,
+                                       dataset_Brar,
+                                       hdf5file_SPORE_1,
                                        gffdf =gff_df,
                                        nnt_gene = 50)
   ) %>%
     Reduce("+", .) %>% # sums the list of data matrices
-    TidyDatamatrix(startpos = -250, startlen = 10) %>%
+    TidyDatamatrix(startpos = -250, startlen = 10, scaling_factor = 18.75678) %>%
     return()
   
 }
 
-
-## iteration of TL_table over multiple genes
-final_function_table <- function(genes){
-  table <-purrr::map(genes, TL_table)
-  names(table) <- genes
-  return(table)
-  
-}
-
-plotting_meta_analysis<- function(input_data) {
-  
-  plotted_TL <- ggplot(input_data) +
-    geom_density(aes(x=Pos, y=Counts), stat="identity") +
-    scale_x_continuous(limits = c(-250,50), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    labs(y= "Read count", x = "Position") +
-    ggtitle(paste0("Ribosome footprint density of all genes: WT 3-AT")) +
-    theme_classic() %>%
-    return()
-}
 
 ################################### Set up ######################################
 
@@ -686,9 +620,11 @@ asite_disp_length <- readr::read_tsv(asite_disp_length_file,
 
 dataset_G2014 <- "G-Sc_2014"
 dataset_Brar <- "B-Sc_2012"
-genes <- c("YPR036W-A", "YEL009C", "YOR303W", "YGR094W", "YOL130W", "YOR061W", "YAL040C", "YKL109W", "YIL144W", "YGR037C", "YJL106W", "YBR160W", "YDR172W", "YML065W", "YBR257W", "YOL104C", "YJR094C","YOL125W")
+
 gene_names <- rhdf5::h5ls(hdf5file_none, recursive = 1)$name
 exemplary_genes <- c("YCR012W","YEL009C","YOR303W","YOL130W","YGR094W", "YML065W")
+exemplary_genes_standard <-c("PGK1" ,"GCN4" ,"CPA1", "ALR1", "VAS1", "ORC1")
+
 
 nnt_gene<- 50
 startpos <-250
@@ -797,7 +733,7 @@ GetGene(gene = exemplary_genes[1], dataset = dataset_Brar, hdf5file = hdf5file_S
 # # … with 290 more rows
 
 #GetGeneMultiple
-exemplary_genes_vegetative <-GetGeneMultiple(gene = exemplary_genes,dataset = dataset_Brar,hdf5file = hdf5file_VEG_1,gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length,, scaling_factor = scaling_factor_VEG_2)
+exemplary_genes_vegetative <-GetGeneMultiple(gene = exemplary_genes,dataset = dataset_Brar,hdf5file = hdf5file_VEG_1,gffdf = gff_df, min_read_length = 10, asite_disp_length = asite_disp_length, scaling_factor = scaling_factor_VEG_1)
 
 exemplary_genes_anaphase <-GetGeneMultiple(gene = exemplary_genes,dataset = dataset_Brar,hdf5file = hdf5file_A_1,gffdf = gff_df,min_read_length = 10, asite_disp_length = asite_disp_length, scaling_factor = scaling_factor_A_1)
 
@@ -842,10 +778,10 @@ join_GetGeneData(gene1,gene2 )
 # 10  -241      0
 # # … with 290 more rows
 
-#CanVsNon
-exempary_VEG_CanVsNon <-CanVsNon(exemplary_genes_vegetative)
-exempary_A_CanVsNon <-CanVsNon(exemplary_genes_anaphase)
-exempary_SPORE_CanVsNon <-CanVsNon(exemplary_genes_spore)
+#FootprintDensity
+exemplary_VEG_Density <-FootprintDensity(exemplary_genes_vegetative)
+exemplary_A_Density <-FootprintDensity(exemplary_genes_anaphase)
+exemplary_SPORE_Density <-FootprintDensity(exemplary_genes_spore)
 # A tibble: 6 x 3
 # Gene    Count_TL Count_AUG
 # <chr>      <dbl>     <dbl>
@@ -857,21 +793,21 @@ exempary_SPORE_CanVsNon <-CanVsNon(exemplary_genes_spore)
 # 6 YOR303W  0.223       0 
 
 #TLvsAUGscatter
-TLvsAUGscatter(exempary_genes_CanVsNon)
+TLvsAUGscatter(exemplary_VEG_Density)
 
 #TL_AUG_Regulation
-TL_AUG_Regulation(exempary_SPORE_CanVsNon,exempary_A_CanVsNon,exempary_SPORE_CanVsNon )
+TL_AUG_Regulation(exemplary_VEG_Density,exemplary_A_Density,exemplary_SPORE_Density )
 
 #DistributionPlot
 DistributionPlot(exemplary_genes_spore[[1]])
 
-MultipleDistributionPlots(exemplary_genes_vegetative, exemplary_genes)
+MultipleDistributionPlots(exemplary_genes_vegetative, exemplary_genes_standard)
 
 #TwoPlotsDistribution
-TwoPlotsDistribution(exemplary_genes_vegetative[[1]], exemplary_genes_anaphase[[1]],gene ="YCR012W", cond1_name = "VEGETATIVE", "ANPHASE_1" )
+TwoPlotsDistribution(exemplary_genes_vegetative[[1]], exemplary_genes_anaphase[[1]],gene ="PGK1", cond1_name = "VEGETATIVE", "ANPHASE_1" )
 
 #ThreePlotsDistribution
-ThreePlotsDistribution(exemplary_genes_vegetative[[1]], exemplary_genes_anaphase[[1]], exemplary_genes_spore[[1]], cond1_name = "VEGETATIVE", "ANPHASE_1", "SPORE")
+ThreePlotsDistribution(exemplary_genes_vegetative[[1]], exemplary_genes_anaphase[[1]], exemplary_genes_spore[[1]], cond1_name = "VEGETATIVE", "ANPHASE_1", "SPORE", "PGK1")
 
 #sum_uAUG
 sum_uAUG(datatibble = exemplary_genes_vegetative[[1]],uAUG_start = -250,uAUG_end = -5)
@@ -900,29 +836,12 @@ sum_uAUG_multiple(genes = exemplary_genes_vegetative,uAUG_start = -250, uAUG_end
 # $YML065W.sum_read_counts_uAUG
 # [1] 0.0003215591
 
-#CDS_TL
-exemplary_result <-CDS_TL(genes = exemplary_genes_vegetative,gene_names = exemplary_genes)
-# # A tibble: 12 x 3
-# genes     region    count
-# <list>    <chr>     <dbl>
-# 1 <chr [1]> TL     0.0132  
-# 2 <chr [1]> TL     0.138   
-# 3 <chr [1]> TL     0.0289  
-# 4 <chr [1]> TL     0.0158  
-# 5 <chr [1]> TL     0.000643
-# 6 <chr [1]> TL     0.000322
-# 7 <chr [1]> AUG    1.52    
-# 8 <chr [1]> AUG    0.137   
-# 9 <chr [1]> AUG    0       
-# 10 <chr [1]> AUG    0       
-# 11 <chr [1]> AUG    0.00525 
-# 12 <chr [1]> AUG    0.0420 
 
 #GetTLvsAUG
-GetTLvsAUG(genes = exemplary_result,gene_names = exemplary_genes)
+GetTLvsAUG(genes = exemplary_genes_vegetative)
 
 #UpstreamRegionsCount
-exemplaru_regions_veg <-UpstreamRegionsCount(exemplary_genes_vegetative,gene_names = exemplary_genes)
+exemplary_regions_veg <-UpstreamRegionsCount(exemplary_genes_vegetative,gene_names = exemplary_genes_standard)
 # # A tibble: 36 x 3
 # genes     region     read
 # <list>    <chr>     <dbl>
@@ -939,22 +858,22 @@ exemplaru_regions_veg <-UpstreamRegionsCount(exemplary_genes_vegetative,gene_nam
 # # … with 26 more rows
 
 #Different_Regions_barplot
-Different_Regions_barplot(data = exemplaru_regions_veg)
+Different_Regions_barplot(data = exemplary_regions_veg)
 
 #plotted_each_barplot
-plotted_each_barplot(exemplaru_regions_veg, exemplary_genes[[1]])
+plotted_each_barplot(exemplary_regions_veg, "PGK1")
 
 #all_genes_TL_AUG
-all_genes_TL_AUG(exempary_SPORE_CanVsNon)
+all_genes_TL_AUG(exemplary_SPORE_Density)
 
 #TL_3_conditions_all
-TL_3_conditions_all(condition1_TL = exempary_VEG_CanVsNon,condition2_TL =  exempary_A_CanVsNon, condition3_TL = exempary_SPORE_CanVsNon, name1 = "VEGETATIVE", "ANAPHASE I", "SPORE")
+TL_3_conditions_all(condition1_TL = exemplary_VEG_Density,condition2_TL =  exemplary_A_Density, condition3_TL = exemplary_SPORE_Density, name1 = "VEGETATIVE", "ANAPHASE I", "SPORE")
 
 #compared_TL_single
-compared_TL_single(condition1 = exempary_VEG_CanVsNon, condition2 = exempary_A_CanVsNon, condition3 = exempary_SPORE_CanVsNon, gene = "YCR012W")
+compared_TL_single(condition1 = exemplary_VEG_Density, condition2 = exemplary_A_Density, condition3 = exemplary_SPORE_Density, gene = "YCR012W")
 
 #Efficiency_preparation
-Efficiency_preparation(condition1 = exempary_VEG_CanVsNon,condition2 =  exempary_A_CanVsNon, condition3 = exempary_SPORE_CanVsNon)
+Efficiency_preparation(condition1 = exemplary_VEG_Density,condition2 =  exemplary_A_Density, condition3 = exemplary_SPORE_Density)
 # # A tibble: 18 x 4
 # Gene    Condition Reads_TL Reads_AUG
 # <chr>   <chr>        <dbl>     <dbl>
@@ -978,4 +897,23 @@ Efficiency_preparation(condition1 = exempary_VEG_CanVsNon,condition2 =  exempary
 # 18 YOR303W SPORE    0.223      0      
 
 #Efficiency_AUG_TL
-Efficiency_AUG_TL(condition1 = exempary_VEG_CanVsNon,condition2 =  exempary_A_CanVsNon, condition3 = exempary_SPORE_CanVsNon, gene = exemplary_genes[[2]], condition_name1 = "VEGETATIVE", "ANAPHASE I", "SPORE")
+Efficiency_AUG_TL(condition1 = exemplary_VEG_Density,condition2 =  exemplary_A_Density, condition3 = exemplary_SPORE_Density, gene = exemplary_genes[[2]], condition_name1 = "VEGETATIVE", "ANAPHASE I", "SPORE")
+
+# no_A_site_mapping
+Data_without_a_site_mapping <-no_A_site_mapping(exemplary_genes)
+# # A tibble: 300 x 2
+# Pos Counts
+# <int>  <dbl>
+# 1  -250 0     
+# 2  -249 0     
+# 3  -248 0.0533
+# 4  -247 0.0533
+# 5  -246 0     
+# 6  -245 0     
+# 7  -244 0     
+# 8  -243 0     
+# 9  -242 0     
+# 10  -241 0     
+# # … with 290 more rows
+
+DistributionPlot(Data_without_a_site_mapping)
